@@ -1,0 +1,1 @@
+{"type":"module","private":true,"name":"animsa","scripts":{"build":"node tools/build.mjs","test":"TZ=Europe/Istanbul node test/parser.test.mjs && node test/push.test.mjs && node test/worker.test.mjs"}}

@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Anımsa">
+<meta name="application-name" content="Anımsa">
+<meta name="theme-color" content="#05060F">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="Söyle, unutma. Sesli ve yazılı hatırlatıcı.">
+<title>Anımsa</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<style>/*__CSS__*/</style>
+</head>
+<body>
+<!-- Canlı arka plan -->
+<div class="bg" aria-hidden="true">
+  <div class="aurora a1"></div><div class="aurora a2"></div><div class="aurora a3"></div>
+  <canvas id="stars"></canvas>
+  <div class="grain"></div>
+</div>
+
+<div id="app">
+  <header class="top">
+    <div class="greet-row">
+      <div>
+        <h1 class="greet" id="greet">Merhaba</h1>
+        <p class="date-line" id="dateLine"></p>
+        <p class="count-line" id="countLine"><span class="dot" aria-hidden="true"></span><span id="countTxt"></span></p>
+      </div>
+      <button class="icon-btn glass press" id="settingsBtn" aria-label="Ayarları aç">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg>
+      </button>
+    </div>
+    <div class="seg glass" id="seg" data-tab="up" role="tablist" aria-label="Liste seçimi">
+      <span class="seg-ind" aria-hidden="true"></span>
+      <button role="tab" id="tabUp" aria-selected="true" aria-controls="panelUp" data-tab="up">Yaklaşan</button>
+      <button role="tab" id="tabPast" aria-selected="false" aria-controls="panelPast" data-tab="past">Geçmiş</button>
+    </div>
+  </header>
+
+  <main class="scroller" id="scroller">
+    <section id="panelUp" class="tab-panel" role="tabpanel" aria-labelledby="tabUp">
+      <div id="hero"></div>
+      <div id="list"></div>
+    </section>
+    <section id="panelPast" class="tab-panel" role="tabpanel" aria-labelledby="tabPast" hidden>
+      <div id="pastList"></div>
+      <div class="past-actions"><button class="ghost-btn danger press" id="clearPast" aria-label="Geçmişi temizle">Geçmişi temizle</button></div>
+    </section>
+  </main>
+
+  <footer class="dock" id="dock">
+    <div class="chips" id="chips" role="group" aria-label="Hızlı zaman seçenekleri">
+      <button class="chip press" data-chip="10 dk sonra">10 dk sonra</button>
+      <button class="chip press" data-chip="30 dk sonra">30 dk sonra</button>
+      <button class="chip press" data-chip="1 saat sonra">1 saat sonra</button>
+      <button class="chip press" data-chip="bu akşam 20:00">Bu akşam 20:00</button>
+      <button class="chip press" data-chip="yarın 09:00">Yarın 09:00</button>
+    </div>
+    <div class="preview" id="preview" aria-live="polite"></div>
+    <div class="hint glass" id="hint" role="status" aria-live="polite"></div>
+    <div class="bar">
+      <form class="field glass" id="form" autocomplete="off" role="search">
+        <div class="field-inner">
+          <input id="input" type="text" inputmode="text" enterkeyhint="done" autocapitalize="sentences" autocorrect="on" spellcheck="false" maxlength="240" aria-label="Hatırlatıcıyı yaz, örneğin: yarın sabah 9'da toplantı">
+          <span class="ph" id="ph" aria-hidden="true"></span>
+        </div>
+      </form>
+      <button class="orb press" id="orb" aria-label="Sesle hatırlatıcı ekle">
+        <span class="orb-glow" aria-hidden="true"></span>
+        <span class="orb-core" aria-hidden="true"></span>
+        <span class="orb-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></span>
+      </button>
+    </div>
+  </footer>
+</div>
+
+<!-- Dinleme sahnesi -->
+<div class="listen" id="listen" role="dialog" aria-modal="true" aria-label="Dinleniyor" aria-hidden="true">
+  <div class="listen-scrim"></div>
+  <div class="big-wrap" id="bigWrap">
+    <div class="big-orb" id="bigOrb">
+      <span class="orb-glow"></span><span class="orb-core"></span>
+      <span class="orb-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></span>
+    </div>
+    <div class="spinner" aria-hidden="true"></div>
+  </div>
+  <canvas id="wave" aria-hidden="true"></canvas>
+  <div class="listen-text" id="listenText" aria-live="polite"></div>
+  <div class="listen-status" id="listenStatus">Dinliyorum…</div>
+  <div class="listen-actions">
+    <button class="round-btn glass press" id="listenCancel" aria-label="Dinlemeyi iptal et"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <button class="round-btn primary press" id="listenDone" aria-label="Dinlemeyi bitir"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<!-- Onay kartı -->
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetKicker" tabindex="-1">
+  <div class="handle" aria-hidden="true"></div>
+  <div class="sheet-head"><span class="sheet-kicker" id="sheetKicker">Yeni hatırlatıcı</span></div>
+  <label class="sr-only" for="taskInput">Görev</label>
+  <textarea class="task-input" id="taskInput" rows="1" maxlength="200" enterkeyhint="done"></textarea>
+  <div class="time-box" id="timeBox">
+    <label class="time-pick" aria-label="Saati değiştir">
+      <div class="odo num" id="odo" aria-hidden="true"></div>
+      <span class="sr-only" id="timeSr"></span>
+      <input class="pick-input" type="time" id="timeInput" aria-label="Saati değiştir">
+    </label>
+    <label class="date-pick press" aria-label="Tarihi değiştir">
+      <span id="dateTxt">Bugün</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      <input class="pick-input" type="date" id="dateInput" aria-label="Tarihi değiştir">
+    </label>
+  </div>
+  <p class="time-note" id="timeNote" hidden></p>
+  <p class="left-line" aria-live="polite"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/></svg><span id="leftTxt"></span></p>
+  <div class="sheet-actions">
+    <button class="btn-soft press" id="cancelBtn">Vazgeç</button>
+    <button class="btn-main" id="saveBtn" aria-label="Hatırlat"><span class="lbl">Hatırlat</span><svg class="chk" viewBox="0 0 30 30" aria-hidden="true"><path d="M7 15.5l5.5 5.5L23.5 9.5"/></svg></button>
+  </div>
+</section>
+
+<!-- Alarm / erteleme -->
+<section class="sheet" id="alarm" role="alertdialog" aria-modal="true" aria-labelledby="alarmTask" tabindex="-1">
+  <div class="handle" aria-hidden="true"></div>
+  <svg class="alarm-bell" viewBox="0 0 96 96" aria-hidden="true">
+    <defs><linearGradient id="bgA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7C5CFF"/><stop offset="1" stop-color="#19D3FF"/></linearGradient><radialGradient id="glA"><stop offset="0" stop-color="#19D3FF" stop-opacity=".5"/><stop offset="1" stop-color="#19D3FF" stop-opacity="0"/></radialGradient></defs>
+    <circle cx="48" cy="50" r="46" fill="url(#glA)"/>
+    <g class="bell-swing"><path d="M48 18c-13 0-21 9.5-21 22v12l-6 9h54l-6-9V40c0-12.5-8-22-21-22z" fill="url(#bgA)"/><circle cx="48" cy="69" r="6" fill="#F5F7FF"/><circle cx="48" cy="16" r="4" fill="url(#bgA)"/></g>
+  </svg>
+  <div class="alarm-title">Zamanı geldi</div>
+  <div class="alarm-task" id="alarmTask"></div>
+  <div class="alarm-time num" id="alarmTime"></div>
+  <div class="alarm-actions">
+    <button class="btn-soft press" id="snooze10">10 dk ertele</button>
+    <button class="btn-soft press" id="snooze60">1 saat ertele</button>
+    <button class="btn-main" id="alarmOk"><span class="lbl">Tamam</span></button>
+  </div>
+</section>
+
+<!-- Ayarlar -->
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle" tabindex="-1">
+  <div class="panel-head">
+    <h2 id="panelTitle">Ayarlar</h2>
+    <button class="icon-btn glass press" id="panelClose" aria-label="Ayarları kapat"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="group">
+    <div class="row">
+      <div class="row-l"><div class="row-t">Bildirimler</div><div class="row-s" id="notifDesc"></div></div>
+      <span class="badge off" id="notifBadge">Kapalı</span>
+    </div>
+    <div class="row" id="enableRow">
+      <div class="row-l"><div class="row-t">Bildirimleri aç</div><div class="row-s">Uygulama kapalıyken de uyarı almak için.</div></div>
+      <button class="small-btn grad press" id="enableBtn">Aç</button>
+    </div>
+    <div class="row">
+      <div class="row-l"><div class="row-t">Test bildirimi</div><div class="row-s">Birkaç saniye içinde gelmeli.</div></div>
+      <button class="small-btn press" id="testBtn">Gönder</button>
+    </div>
+  </div>
+  <div class="group">
+    <div class="row">
+      <div class="row-l"><div class="row-t">Bildirim sesi</div><div class="row-s">iOS, web uygulamalarına özel ses seçtirmiyor; ses iPhone'un varsayılan bildirim sesidir.</div></div>
+      <div class="mini-seg" role="group" aria-label="Bildirim sesi">
+        <button id="soundOn" aria-pressed="true">Sesli</button>
+        <button id="soundOff" aria-pressed="false">Sessiz</button>
+      </div>
+    </div>
+  </div>
+  <p class="panel-note">Sesi ve kilit ekranı görünümünü iPhone'da <b>Ayarlar › Bildirimler › Anımsa</b> bölümünden değiştirebilirsin. Odak (Rahatsız Etme) modu açıkken bildirimler sessiz gelebilir.</p>
+  <div class="group">
+    <div class="row">
+      <div class="row-l"><div class="row-t">Tüm verileri sil</div><div class="row-s">Hatırlatıcılar ve bildirim aboneliği silinir.</div></div>
+      <button class="small-btn danger press" id="wipeBtn">Sil</button>
+    </div>
+  </div>
+  <div class="panel-foot">Anımsa · sürüm <span id="ver"></span></div>
+</aside>
+
+<!-- Tanıtım -->
+<div class="onb" id="onb" role="dialog" aria-modal="true" aria-label="Anımsa'ya hoş geldin" hidden>
+  <div class="onb-track" id="onbTrack">
+    <div class="slide" data-step="0">
+      <div class="orb onb-orb" aria-hidden="true"><span class="orb-glow"></span><span class="orb-core"></span><span class="orb-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></span></div>
+      <h2>Söyle, <span class="g">unutma.</span></h2>
+      <p>Bir cümle söyle ya da yaz. Anımsa saati kendisi anlar, zamanı gelince seni uyarır.</p>
+      <div class="onb-demo glass" aria-hidden="true"><div class="q" id="demoQ"></div><div class="a" id="demoA"></div></div>
+    </div>
+    <div class="slide" data-step="1">
+      <h2>Ana ekrana <span class="g">ekle</span></h2>
+      <p>Bildirimlerin çalışması için Anımsa'yı Safari'den ana ekranına eklemelisin.</p>
+      <div class="guide" id="guide">
+        <div class="step"><span class="step-n">1</span><span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7.5 7.5L12 3l4.5 4.5"/><path d="M8 11H6a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-2"/></svg></span><span class="step-t">Alttaki <b>Paylaş</b> simgesine dokun</span></div>
+        <div class="step"><span class="step-n">2</span><span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/></svg></span><span class="step-t">Listede <b>Ana Ekrana Ekle</b>'yi seç</span></div>
+        <div class="step"><span class="step-n">3</span><span class="step-ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span class="step-t">Sağ üstteki <b>Ekle</b>'ye dokun, sonra ana ekrandan aç</span></div>
+      </div>
+    </div>
+    <div class="slide" data-step="2">
+      <svg class="onb-bell" viewBox="0 0 168 168" aria-hidden="true">
+        <defs><linearGradient id="bgO" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7C5CFF"/><stop offset="1" stop-color="#19D3FF"/></linearGradient><radialGradient id="glO"><stop offset="0" stop-color="#7C5CFF" stop-opacity=".55"/><stop offset="1" stop-color="#7C5CFF" stop-opacity="0"/></radialGradient></defs>
+        <circle cx="84" cy="88" r="80" fill="url(#glO)"/>
+        <g class="bell-swing"><path d="M84 40c-21 0-34 15-34 35v20l-10 15h88l-10-15V75c0-20-13-35-34-35z" fill="url(#bgO)"/><circle cx="84" cy="122" r="9" fill="#F5F7FF"/><circle cx="84" cy="37" r="6" fill="url(#bgO)"/></g>
+      </svg>
+      <h2 id="permTitle">Bildirimleri <span class="g">aç</span></h2>
+      <p id="permSub">Zamanı gelince telefon kilitliyken bile haber verelim.</p>
+      <div class="perm-msg" id="permMsg" aria-live="polite"></div>
+    </div>
+  </div>
+  <div class="onb-foot">
+    <div class="dots" id="dots" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
+    <button class="btn-main onb-btn" id="onbNext"><span class="lbl">Devam</span></button>
+    <button class="link-btn" id="onbSkip">Şimdilik geç</button>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+<script>/*__JS__*/</script>
+</body>
+</html>
