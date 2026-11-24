@@ -490,23 +490,35 @@ if (window.visualViewport) {
 const orbBtn = $('orb'), listenEl = $('listen'), bigWrap = $('bigWrap'), bigOrb = $('bigOrb');
 let L = null; // aktif dinleme oturumu
 
-function micFallback() {
+function micFallback(msg) {
   input.focus();
-  showHint('Klavyedeki 🎤 simgesine dokunarak konuşabilirsin.', 3000);
+  showHint(msg || 'Klavyedeki 🎤 simgesine dokunarak konuşabilirsin.', msg ? 4500 : 3000);
 }
+// iOS ana ekran uygulamalarında konuşma tanıma bazen hiç çalışmaz. Bir kez çalışmadığı görülürse
+// 3 gün boyunca küre doğrudan klavye dikte yoluna yönlendirir (dokunuş anında odaklandığı için klavye açılır).
+const K_MIC = 'anımsa.micBroken';
+function micBroken() { const t = readLS(K_MIC, 0); return Number.isFinite(t) && Date.now() - t < 3 * 86400000; }
+function markMicBroken() { writeLS(K_MIC, Date.now()); }
 orbBtn.addEventListener('click', () => {
   if (L) return;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { micFallback(); return; }
+  if (!SR || micBroken()) { micFallback(); return; }
   let rec;
   try { rec = new SR(); } catch (e) { micFallback(); return; }
   rec.lang = 'tr-TR'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
-  L = { rec, text: '', ended: false, stream: null, ac: null, analyser: null, raf: 0, silence: 0, lastRipple: 0, level: 0, fake: false, failed: false, cancelled: false };
+  L = { rec, text: '', ended: false, stream: null, ac: null, analyser: null, raf: 0, silence: 0, lastRipple: 0, level: 0, fake: false, failed: false, cancelled: false, alive: false, boost: 0, watchdog: 0, doneTimer: 0 };
+  const S0 = L;
+  const alive = () => { if (L === S0) S0.alive = true; };
+  rec.onstart = alive; rec.onaudiostart = alive; rec.onsoundstart = alive; rec.onspeechstart = alive;
+  // Bekçi: 6 sn içinde ne ses ne sonuç geldiyse tanıma çalışmıyor demektir
+  S0.watchdog = setTimeout(() => {
+    if (L === S0 && !S0.text && !S0.alive) { S0.failed = 'dead'; try { rec.abort(); } catch (e) { /* yok */ } finishListening(); }
+  }, 6000);
   rec.onresult = e => {
     if (!L) return;
     let s = '';
     for (let i = 0; i < e.results.length; i++) s += e.results[i][0].transcript;
-    L.text = s.trim();
+    L.text = s.trim(); L.alive = true; L.boost = 1;
     $('listenText').textContent = L.text;
     input.value = L.text; ph.hidden = !!L.text; updatePreview();
     resetSilence();
@@ -521,7 +533,9 @@ orbBtn.addEventListener('click', () => {
   rec.onend = () => finishListening();
   try { rec.start(); } catch (e) { L = null; micFallback(); return; }
   openListen();
-  startMeter();
+  // iOS'ta mikrofon tek bir işe verilir: ses seviyesi için ayrıca mikrofon açmak konuşma tanımayı susturabilir.
+  // Bu yüzden iOS'ta dalga/küre, gelen sözcüklere göre canlanan yumuşak bir nabızla çalışır.
+  startMeter(isIOS);
   resetSilence();
 });
 
@@ -557,7 +571,7 @@ function closeListen() {
   if (!sheetState.open && !alarmState.open) setInert(false);
 }
 
-async function startMeter() {
+async function startMeter(noMic) {
   const S = L;
   const wave = $('wave'), wctx = wave.getContext('2d');
   const dpr = Math.min(devicePixelRatio || 1, 2);
@@ -567,7 +581,7 @@ async function startMeter() {
   grad.addColorStop(0, 'rgba(124,92,255,0)'); grad.addColorStop(0.2, '#7C5CFF'); grad.addColorStop(0.8, '#19D3FF'); grad.addColorStop(1, 'rgba(25,211,255,0)');
   let buf = null;
   try {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('yok');
+    if (noMic || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('yok');
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
     if (L !== S) { stream.getTracks().forEach(t => t.stop()); return; }
     S.stream = stream;
@@ -593,7 +607,8 @@ async function startMeter() {
       if (target > 0.12) resetSilence();
     } else {
       const k = (t - t0) / 1000;
-      target = 0.28 + 0.16 * Math.sin(k * 2.4) + 0.06 * Math.sin(k * 6.1);
+      S.boost *= 0.96;   // sözcük geldikçe nabız güçlenir
+      target = 0.24 + 0.14 * Math.sin(k * 2.4) + 0.06 * Math.sin(k * 6.1) + 0.45 * S.boost * (0.6 + 0.4 * Math.sin(k * 11));
       for (let i = 0; i < 64; i++) pts.push(Math.sin(i / 5 + k * 5) * 0.18 * (0.6 + 0.4 * Math.sin(k * 2.4)) * Math.sin(Math.PI * i / 63));
     }
     S.level += (target - S.level) * 0.22;
@@ -631,12 +646,22 @@ function stopMeter(S) {
 async function finishListening() {
   const S = L; if (!S || S.ended) return;
   S.ended = true;
+  clearTimeout(S.watchdog); clearTimeout(S.doneTimer);
   stopMeter(S);
-  S.rec.onresult = S.rec.onerror = S.rec.onend = null;
+  S.rec.onresult = S.rec.onerror = S.rec.onend = S.rec.onstart = S.rec.onaudiostart = S.rec.onsoundstart = S.rec.onspeechstart = null;
   L = null;
   const text = S.text;
   if (S.cancelled) { closeListen(); return; }
   if (!text) {
+    if (S.failed === 'dead' || (S.failed === 'error' && !S.alive) || (!S.alive && !S.failed)) {
+      // Konuşma tanıma bu ortamda çalışmıyor: bir daha denemeden klavye diktesine yönlendir
+      markMicBroken();
+      listenEl.classList.add('error'); $('listenStatus').textContent = 'Sesli tanıma burada çalışmıyor';
+      haptic([20, 60, 20]);
+      await sleep(900); closeListen();
+      micFallback('iPhone bu ekranda sesli tanımaya izin vermiyor. Yazı kutusuna dokunup klavyedeki 🎤 ile konuş.');
+      return;
+    }
     if (S.failed === 'error') {
       listenEl.classList.add('error'); $('listenStatus').textContent = 'Mikrofon kullanılamadı';
       haptic([20, 60, 20]);
@@ -656,9 +681,16 @@ async function finishListening() {
   await sleep(300);
   closeListen();
 }
-$('listenDone').addEventListener('click', () => { if (L) { try { L.rec.stop(); } catch (e) { finishListening(); } } });
+// ✓: tanımayı durdur; tanıma "bitti" yanıtı vermezse 0,9 sn sonra yine de bitir (takılı kalmasın)
+$('listenDone').addEventListener('click', () => {
+  const S = L; if (!S) return;
+  haptic(8);
+  try { S.rec.stop(); } catch (e) { /* yok */ }
+  clearTimeout(S.doneTimer);
+  S.doneTimer = setTimeout(() => { if (L === S) finishListening(); }, 900);
+});
 $('listenCancel').addEventListener('click', () => { if (L) { L.cancelled = true; try { L.rec.abort(); } catch (e) { /* yok */ } finishListening(); input.value = ''; updatePreview(); } });
-bigWrap.addEventListener('click', () => { if (L) { try { L.rec.stop(); } catch (e) { /* yok */ } } });
+bigWrap.addEventListener('click', () => { if (L) $('listenDone').click(); });
 
 /* ═══ 8. Onay kartı ═══ */
 const sheet = $('sheet'), scrim = $('scrim'), taskInput = $('taskInput'), timeInput = $('timeInput'), dateInput = $('dateInput');

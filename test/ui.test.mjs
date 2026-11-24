@@ -189,6 +189,30 @@ try {
     await ctx.close();
   }
   {
+    // iOS'taki durum: tanıma başlıyor gibi görünüp hiç sonuç/olay vermiyor, stop() de onend tetiklemiyor
+    const { ctx, page } = await newPage({ onboarded: true, tag: 'mikrofon-takili', init: () => {
+      window.SpeechRecognition = window.webkitSpeechRecognition = class { start() {} stop() {} abort() {} };
+    } });
+    await wait(400);
+    await page.click('#orb'); await wait(1200);
+    await page.click('#listenDone'); await wait(2400);
+    ok('✓ tuşu: tanıma yanıt vermese de dinleme ekranı kapanıyor (takılmıyor)', !(await page.evaluate(() => document.getElementById('listen').classList.contains('open'))));
+    ok('Tanıma çalışmazsa açık Türkçe yönlendirme gösteriliyor', (await page.textContent('#hint')).includes('klavyedeki 🎤'), await page.textContent('#hint'));
+    await page.click('#orb'); await wait(300);
+    ok('Bir kez çalışmadıysa küre doğrudan klavye diktesine yönlendiriyor', !(await page.evaluate(() => document.getElementById('listen').classList.contains('open'))) && await page.evaluate(() => document.activeElement.id === 'input'));
+    await ctx.close();
+  }
+  {
+    // Bekçi: kullanıcı hiçbir şeye dokunmazsa 6 sn sonra kendiliğinden kapanır
+    const { ctx, page } = await newPage({ onboarded: true, tag: 'mikrofon-bekci', init: () => {
+      window.SpeechRecognition = window.webkitSpeechRecognition = class { start() {} stop() {} abort() {} };
+    } });
+    await wait(400);
+    await page.click('#orb'); await wait(7600);
+    ok('Hiç ses gelmezse dinleme 6 sn sonra kendiliğinden kapanıyor', !(await page.evaluate(() => document.getElementById('listen').classList.contains('open'))));
+    await ctx.close();
+  }
+  {
     const { ctx, page } = await newPage({ onboarded: true, noSpeech: true, tag: 'mikrofon-yok' });
     await wait(400);
     await page.click('#orb'); await wait(300);
