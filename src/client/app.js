@@ -480,7 +480,7 @@ const hasGUM = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
 
 function micFallback(msg) {
   input.focus();
-  showHint(msg || 'Klavyedeki 🎤 simgesine dokunarak konuşabilirsin.', msg ? 4500 : 3000);
+  showHint(msg || 'Klavyedeki 🎤 simgesine dokunarak konuşabilirsin.', msg ? 7000 : 3000);
 }
 // Tarayıcı tanıması bir kez hiç çalışmadıysa 3 gün boyunca o yolu denemeyiz
 const K_MIC = 'anımsa.micBroken';
@@ -513,7 +513,9 @@ function startRecord() {
   S.ac = ac; S.rate = ac.sampleRate;
   openListen('Dinliyorum… bitince sus ya da ✓\'ye dokun');
   startMeter(S);
-  navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } })
+  // Önce iyileştirilmiş ayarlarla, izin dışı bir hatada en sade ayarla bir kez daha dene
+  navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+    .catch(e => (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) ? Promise.reject(e) : navigator.mediaDevices.getUserMedia({ audio: true }))
     .then(stream => {
       if (L !== S || S.stopped) { stream.getTracks().forEach(t => t.stop()); return; }
       S.stream = stream;
@@ -527,7 +529,7 @@ function startRecord() {
       src.connect(proc); proc.connect(ac.destination);
       S.proc = proc; S.alive = true; S.t0 = performance.now();
     })
-    .catch(() => { if (L === S) { S.failed = 'perm'; finishListening(); } });
+    .catch(e => { if (L === S) { S.failed = 'perm'; S.errName = (e && e.name) || 'Hata'; finishListening(); } });
 }
 function stopRecord(S) { S.stopped = true; finishListening(); }
 
@@ -704,7 +706,16 @@ async function finishListening() {
   if (S.cancelled) { closeListen(); return; }
 
   if (S.mode === 'record') {
-    if (S.failed === 'perm') return failListen('Mikrofon izni yok', 'Mikrofon izni gerekli. Tekrar dokunup izin isteğinde “İzin Ver”i seç; olmazsa klavyedeki 🎤 ile konuş.');
+    if (S.failed === 'perm') {
+      const n = S.errName;
+      if (n === 'NotAllowedError' || n === 'SecurityError')
+        return failListen('Mikrofon izni yok', 'iPhone mikrofona izin vermedi. Ayarlar › Safari › Mikrofon’u “Sor” ya da “İzin Ver” yap, Anımsa’yı kapatıp yeniden aç. (' + n + ')');
+      if (n === 'NotReadableError' || n === 'AbortError')
+        return failListen('Mikrofon meşgul', 'Mikrofon şu an başka bir uygulamada (arama, kayıt) kullanılıyor olabilir. Kapatıp tekrar dene. (' + n + ')');
+      if (n === 'NotFoundError')
+        return failListen('Mikrofon bulunamadı', 'Mikrofon bulunamadı. Klavyedeki 🎤 ile konuşabilirsin. (' + n + ')');
+      return failListen('Mikrofon açılamadı', 'Mikrofon açılamadı. Klavyedeki 🎤 ile konuşabilirsin. (' + n + ')');
+    }
     const wav = S.chunks.length ? toWav16k(S.chunks, S.rate) : null;
     if (!wav || wav.seconds < 0.5 || !S.speechSeen) {
       $('listenStatus').textContent = 'Bir şey duyamadım';

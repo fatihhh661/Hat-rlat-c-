@@ -209,6 +209,30 @@ try {
     await page.screenshot({ path: SHOT('16-mikrofon-ai-yok') });
     await ctx.close();
   }
+  {
+    // Mikrofon izni reddedildiğinde: hangi ayarın değişeceği açıkça söyleniyor
+    const { ctx, page } = await newPage({ onboarded: true, tag: 'mikrofon-izin', init: () => {
+      navigator.mediaDevices.getUserMedia = () => Promise.reject(Object.assign(new Error('x'), { name: 'NotAllowedError' }));
+    } });
+    await wait(500);
+    await page.click('#orb'); await wait(1400);
+    const hint = await page.textContent('#hint');
+    ok('Mikrofon izni reddedilince: Ayarlar › Safari › Mikrofon yolu + hata adı', hint.includes('Ayarlar › Safari › Mikrofon') && hint.includes('NotAllowedError'), hint);
+    await ctx.close();
+  }
+  {
+    // İzin dışı hata (örn. kısıt): sade ayarlarla ikinci deneme başarılı olmalı
+    const { ctx, page } = await newPage({ onboarded: true, tag: 'mikrofon-ikinci', init: () => {
+      const orig = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); let n = 0;
+      navigator.mediaDevices.getUserMedia = c => (++n === 1 ? Promise.reject(Object.assign(new Error('x'), { name: 'OverconstrainedError' })) : orig(c));
+    } });
+    await wait(500);
+    await page.click('#orb'); await wait(1200);
+    const mic = await page.evaluate(() => window.__animsa.mic);
+    ok('İlk deneme hata verirse sade ayarlarla ikinci deneme mikrofonu açıyor', mic && mic.analyser, JSON.stringify(mic));
+    await page.click('#listenCancel').catch(() => {});
+    await ctx.close();
+  }
   /* ── 3b) Mikrofon (diğer tarayıcılar): tarayıcı tanıması, canlı yazı ── */
   {
     const { ctx, page } = await newPage({ desktop: true, onboarded: true, fakeSpeech: true, tag: 'mikrofon-tarayici' });
