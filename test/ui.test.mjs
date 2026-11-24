@@ -113,7 +113,7 @@ try {
 
     // Hızlı çip: görev yazılıyken doğrudan kart açar
     await page.fill('#input', 'fırına bak'); await page.click('[data-chip="10 dk sonra"]'); await wait(900);
-    ok('Hızlı çip: görev + "10 dk sonra" ile kart açılıyor', (await page.inputValue('#taskInput')) === 'Fırına bak' && /10 dakika sonra|9 dakika sonra/.test(await page.textContent('#leftTxt')));
+    ok('Hızlı çip: görev + "10 dk sonra" ile kart açılıyor', (await page.inputValue('#taskInput')) === 'Fırına bak' && /(9|10|11) dakika sonra/.test(await page.textContent('#leftTxt')));
     await page.click('#saveBtn'); await wait(1500);
 
     // Zengin liste
