@@ -423,6 +423,7 @@ let previewTimer = 0;
 function updatePreview() {
   const v = input.value.trim();
   ph.hidden = !!input.value;
+  syncSend();
   if (!v) { preview.classList.remove('show'); return; }
   try {
     const p = parse(v, new Date());
@@ -432,7 +433,11 @@ function updatePreview() {
     preview.classList.add('show');
   } catch (e) { preview.classList.remove('show'); }
 }
-input.addEventListener('input', () => { ph.hidden = !!input.value; clearTimeout(previewTimer); previewTimer = setTimeout(updatePreview, 150); });
+const sendBtn = $('sendBtn');
+function syncSend() { sendBtn.classList.toggle('show', !!input.value.trim()); }
+input.addEventListener('input', () => { ph.hidden = !!input.value; syncSend(); clearTimeout(previewTimer); previewTimer = setTimeout(updatePreview, 150); });
+// Klavye kapalıyken de gönderilebilsin: önizleme satırına dokunmak da onay kartını açar
+preview.addEventListener('click', () => { if (input.value.trim()) $('form').requestSubmit ? $('form').requestSubmit() : sendBtn.click(); });
 $('form').addEventListener('submit', e => {
   e.preventDefault();
   const v = input.value.trim();

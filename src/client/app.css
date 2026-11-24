@@ -229,6 +229,12 @@ body.low-power .aurora.a3 { display: none; }
 .field { flex: 1; min-width: 0; height: 60px; border-radius: 22px; display: flex; align-items: center; padding: 0 18px; box-shadow: inset 0 0 0 1px var(--stroke), 0 10px 40px rgba(0,0,0,0.45), 0 0 32px rgba(124,92,255,0.18); transition: box-shadow 260ms var(--ease); }
 .field:focus-within { box-shadow: inset 0 0 0 1px rgba(25,211,255,0.55), 0 10px 40px rgba(0,0,0,0.45), 0 0 40px rgba(25,211,255,0.25); }
 .field.shake { animation: shake 420ms var(--ease); }
+.field { padding-right: 8px; }
+.send-btn { flex: none; width: 44px; height: 44px; margin-left: 8px; border-radius: 50%; display: grid; place-items: center; background: var(--grad); box-shadow: 0 6px 18px rgba(124,92,255,0.45); opacity: 0; transform: scale(0.6); pointer-events: none; transition: opacity 180ms var(--ease), transform 260ms var(--spring); }
+.send-btn svg { width: 22px; height: 22px; stroke: #fff; }
+.send-btn.show { opacity: 1; transform: none; pointer-events: auto; }
+.send-btn.show:active { transform: scale(0.92); }
+.preview.show { cursor: pointer; }
 .field-inner { position: relative; flex: 1; min-width: 0; height: 100%; }
 .field input { position: absolute; inset: 0; width: 100%; background: transparent; border: 0; outline: none; font-size: 1.0625rem; color: var(--text-1); caret-color: var(--accent-2); padding: 0; }
 .ph { position: absolute; left: 0; top: 50%; transform: translateY(-50%); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: clip; color: var(--text-3); font-size: 1.0625rem; pointer-events: none; }

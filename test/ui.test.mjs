@@ -78,9 +78,11 @@ try {
     const pv = await page.textContent('#preview');
     ok('Canlı önizleme: "Anladığım: 23:45 • Ahmet aranacak"', /Anladığım:\s*(Yarın )?23:45 • Ahmet aranacak/.test(pv), pv);
     await page.screenshot({ path: SHOT('05-canli-onizleme') });
-    await page.keyboard.press('Enter');
+    ok('Metin varken görünür gönder düğmesi çıkıyor', await page.evaluate(() => document.getElementById('sendBtn').classList.contains('show')));
+    await page.evaluate(() => document.getElementById('input').blur());   // klavye kapalı senaryosu
+    await page.click('#sendBtn');
     await wait(1100);
-    ok('Enter onay kartını açıyor', await page.evaluate(() => document.getElementById('sheet').classList.contains('open')));
+    ok('Gönder düğmesi (klavye kapalıyken) onay kartını açıyor', await page.evaluate(() => document.getElementById('sheet').classList.contains('open')));
     ok('Onay kartında görev metni', (await page.inputValue('#taskInput')) === 'Ahmet aranacak');
     ok('Saat seçici doğru değerde', (await page.inputValue('#timeInput')) === '23:45');
     ok('"Ne kadar kaldı" satırı', /sonra|kaldı/.test(await page.textContent('#leftTxt')));
