@@ -1073,7 +1073,7 @@ function snooze(ms) {
   const r = state.reminders.find(x => x.id === alarmState.id);
   if (r) {
     r.snoozedFrom = r.snoozedFrom || r.at;
-    r.at = Date.now() + ms; r.createdAt = Date.now(); r.done = false; r.synced = false;
+    r.at = roundToMinute(Date.now() + ms, Date.now()).getTime(); r.createdAt = Date.now(); r.done = false; r.synced = false;
     alerted.delete(r.id);
     save(); dropId = r.id; render(); syncOne(r);
     toast(ms >= 3600000 ? '1 saat sonra tekrar hatırlatacağım.' : '10 dakika sonra tekrar hatırlatacağım.', 'ok');

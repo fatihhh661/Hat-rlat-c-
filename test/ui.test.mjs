@@ -172,7 +172,7 @@ try {
     await wait(800);
     await page.screenshot({ path: SHOT('13-alarm-erteleme') });
     await page.click('#snooze10'); await wait(700);
-    ok('"10 dk ertele" zamanı 10 dk ileri alıyor', await page.evaluate(() => { const r = window.__animsa.state.reminders.find(x => x.text === 'Fırını kapat'); return r && Math.abs(r.at - Date.now() - 600000) < 5000 && !!r.snoozedFrom; }));
+    ok('"10 dk ertele" zamanı 10 dk ileri alıyor', await page.evaluate(() => { const r = window.__animsa.state.reminders.find(x => x.text === 'Fırını kapat'); return r && Math.abs(r.at - Date.now() - 600000) <= 31000 && r.at % 60000 === 0 && !!r.snoozedFrom; }));
     await ctx.close();
   }
 

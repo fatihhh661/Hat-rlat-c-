@@ -71,6 +71,9 @@
 | 65 | boş metin çökmez | doğru | doğru | ✅ |
 | 66 | null çökmez | doğru | doğru | ✅ |
 | 67 | güven alanı 0..1 | doğru | doğru | ✅ |
-| 68 | yarına atıldı işareti | doğru | doğru | ✅ |
+| 68 | saniyeli "şimdi": "1 dakika sonra" tam dakikaya yuvarlanır (23:21:40 → 23:23:00) | doğru | doğru | ✅ |
+| 69 | saniyeli "şimdi": "20 dk sonra" (14:00:20 → 14:20:00) | doğru | doğru | ✅ |
+| 70 | yuvarlama asla geçmişe düşmez | doğru | doğru | ✅ |
+| 71 | yarına atıldı işareti | doğru | doğru | ✅ |
 
-**68/68 geçti**
+**71/71 geçti**

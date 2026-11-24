@@ -338,7 +338,8 @@ export function parse(metin, simdi) {
   const today = startOfDay(now);
 
   if (relMs != null && relDays == null && !date) {
-    zaman = new Date(now.getTime() + relMs);
+    // Tam dakikaya yuvarla: zamanlayıcı dakika başında çalışır, ekranda yazan dakika = bildirimin geleceği dakika
+    zaman = roundToMinute(now.getTime() + relMs, now.getTime());
     guven = 0.95;
   } else {
     // Gün tabanı
@@ -442,6 +443,12 @@ export function parse(metin, simdi) {
 }
 
 function pad2(n) { return String(n).padStart(2, '0'); }
+/** En yakın tam dakikaya yuvarlar; sonuç "şimdi"den önce ya da ona eşit olursa bir dakika ileri alır. */
+export function roundToMinute(ms, nowMs) {
+  let r = Math.round(ms / 60000) * 60000;
+  if (nowMs != null && r <= nowMs) r += 60000;
+  return new Date(r);
+}
 
 /* ── Arayüz yardımcıları (istemci de kullanır) ──────────────── */
 const AYLAR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];

@@ -98,6 +98,9 @@ const extra = [
   ['boş metin çökmez', parse('', NOW).görev === 'Hatırlatıcı'],
   ['null çökmez', parse(null, NOW).görev === 'Hatırlatıcı'],
   ['güven alanı 0..1', (() => { const g = parse('20 dk sonra', NOW).güven; return g > 0.9 && g <= 1; })()],
+  ['saniyeli "şimdi": "1 dakika sonra" tam dakikaya yuvarlanır (23:21:40 → 23:23:00)', (() => { const z = parse('1 dakika sonra su iç', new Date(2026, 10, 24, 23, 21, 40)).zaman; return z.getHours() === 23 && z.getMinutes() === 23 && z.getSeconds() === 0; })()],
+  ['saniyeli "şimdi": "20 dk sonra" (14:00:20 → 14:20:00)', (() => { const z = parse('20 dk sonra', new Date(2026, 10, 24, 14, 0, 20)).zaman; return z.getMinutes() === 20 && z.getSeconds() === 0; })()],
+  ['yuvarlama asla geçmişe düşmez', (() => { const n = new Date(2026, 10, 24, 14, 0, 50); return parse('10 saniye sonra', n).zaman > n; })()],
   ['yarına atıldı işareti', parse('saat 10\'da', NOW).yarinaAtildi === false && parse('saat 13:00', NOW).yarinaAtildi === true],
 ];
 for (const [name, ok] of extra) { rows.push({ text: name, exp: 'doğru', got: ok ? 'doğru' : 'YANLIŞ', ok }); if (ok) pass++; }
