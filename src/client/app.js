@@ -131,9 +131,16 @@ const stars = (() => {
     cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
-  function spawn(n) {
-    parts = [];
-    for (let i = 0; i < n; i++) parts.push({ x: Math.random() * w, y: Math.random() * h, r: Math.random() * 1.3 + 0.3, v: Math.random() * 6 + 3, p: Math.random() * Math.PI * 2, s: Math.random() * 0.8 + 0.4, hue: Math.random() < 0.3 ? 'c' : Math.random() < 0.5 ? 'p' : 'w' });
+  let density = 1;   // gün bölümüne göre: gece en yoğun
+  function one() { return { x: Math.random() * w, y: Math.random() * h, r: Math.random() * 1.3 + 0.3, v: Math.random() * 6 + 3, p: Math.random() * Math.PI * 2, s: Math.random() * 0.8 + 0.4, hue: Math.random() < 0.3 ? 'c' : Math.random() < 0.5 ? 'p' : 'w' }; }
+  function spawn(n) { parts = []; for (let i = 0; i < n; i++) parts.push(one()); }
+  let base = 40;
+  /** Yıldız yoğunluğunu yumuşakça değiştirir (sabah az, gece çok). */
+  function setDensity(d) {
+    density = d;
+    const want = Math.max(8, Math.round(base * d));
+    while (parts.length < want) { const q = one(); q.y = h + Math.random() * 40; parts.push(q); }
+    if (parts.length > want) parts.length = want;
   }
   function frame(t) {
     raf = requestAnimationFrame(frame);
@@ -168,19 +175,55 @@ const stars = (() => {
   function init() {
     resize();
     const cores = navigator.hardwareConcurrency || 4;
-    spawn(cores <= 4 ? 40 : 56);
+    base = cores <= 4 ? 40 : 52;
+    spawn(Math.round(base * density));
     if (reduceMQ.matches) { ctx.clearRect(0, 0, w, h); return; }
     start();
-    addEventListener('resize', () => { resize(); spawn(parts.length || 40); });
+    addEventListener('resize', () => { resize(); spawn(Math.round(base * density)); });
     document.addEventListener('visibilitychange', () => { document.hidden ? stop() : start(); });
   }
-  return { init, start, stop };
+  return { init, start, stop, setDensity };
 })();
+
+/* ═══ 3b. Gün saatine göre atmosfer ═══
+   Arka plan ışıkları, zemin tonu, selamlama rengi ve yıldız yoğunluğu gün boyunca yavaşça değişir.
+   Anahtar saatler arasında renkler doğrusal karışır; her dakika güncellenir. */
+const ATMOS = {
+  sabah: { a1: '#FF8A65', a2: '#FF6FA8', a3: '#FFC857', top: '#1C1020', greet: '#FFE1D2', stars: 0.5, o: [0.5, 0.36, 0.3] },
+  oglen: { a1: '#19D3FF', a2: '#4F8CFF', a3: '#3DFFB0', top: '#061A2C', greet: '#D4F6FF', stars: 0.4, o: [0.46, 0.36, 0.22] },
+  aksam: { a1: '#7C5CFF', a2: '#C04BFF', a3: '#FF5CAA', top: '#0F0A28', greet: '#E6DCFF', stars: 1.0, o: [0.52, 0.32, 0.28] },
+  gece:  { a1: '#3D4BD8', a2: '#2A3A9F', a3: '#7A5CFF', top: '#03040D', greet: '#CFD7FF', stars: 1.45, o: [0.42, 0.3, 0.22] }
+};
+// [saat, evre] — aralarında yumuşak geçiş; 24 sonrası ertesi günün başına bağlanır
+const ATMOS_KEYS = [[5, 'gece'], [7, 'sabah'], [10.5, 'sabah'], [12.5, 'oglen'], [15.5, 'oglen'], [17.5, 'aksam'], [20.5, 'aksam'], [22.5, 'gece'], [29, 'gece']];
+const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+const mix = (a, b, t) => { const x = hex(a), y = hex(b); return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join(''); };
+let atmosOverride = null;   // test ve önizleme için (saat)
+function atmosAt(hour) {
+  let x = hour < 5 ? hour + 24 : hour;
+  let i = 0; while (i < ATMOS_KEYS.length - 2 && ATMOS_KEYS[i + 1][0] <= x) i++;
+  const [h0, p0] = ATMOS_KEYS[i], [h1, p1] = ATMOS_KEYS[i + 1];
+  const raw = clamp((x - h0) / (h1 - h0), 0, 1), t = raw * raw * (3 - 2 * raw);   // yumuşak geçiş
+  const A = ATMOS[p0], B = ATMOS[p1];
+  return { a1: mix(A.a1, B.a1, t), a2: mix(A.a2, B.a2, t), a3: mix(A.a3, B.a3, t), top: mix(A.top, B.top, t), greet: mix(A.greet, B.greet, t),
+    stars: A.stars + (B.stars - A.stars) * t, o: A.o.map((v, k) => v + (B.o[k] - v) * t), phase: t < 0.5 ? p0 : p1 };
+}
+function applyAtmosphere() {
+  const now = new Date();
+  const hour = atmosOverride != null ? atmosOverride : now.getHours() + now.getMinutes() / 60;
+  const a = atmosAt(hour);
+  const st = html.style;
+  st.setProperty('--a1', a.a1); st.setProperty('--a2', a.a2); st.setProperty('--a3', a.a3);
+  st.setProperty('--bg-top', a.top); st.setProperty('--greet', a.greet);
+  st.setProperty('--o1', a.o[0].toFixed(3)); st.setProperty('--o2', a.o[1].toFixed(3)); st.setProperty('--o3', a.o[2].toFixed(3));
+  html.dataset.phase = a.phase;
+  stars.setDensity(a.stars);
+}
 
 /* ═══ 4. Başlık ═══ */
 function renderHeader() {
   const now = new Date();
-  const h = now.getHours();
+  const h = atmosOverride != null ? Math.floor(atmosOverride) % 24 : now.getHours();
   $('greet').textContent = h >= 5 && h < 12 ? 'Günaydın' : h >= 12 && h < 18 ? 'İyi günler' : h >= 18 && h < 22 ? 'İyi akşamlar' : 'İyi geceler';
   $('dateLine').textContent = fullDate(now);
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
@@ -227,7 +270,9 @@ function updateCard(wrap, r, now) {
   const past = r.at <= now;
   const card = wrap.querySelector('.card');
   card.classList.toggle('past', past);
-  wrap.querySelector('.emoji').textContent = emojiFor(r.text);
+  const cat = categoryOf(r.text);
+  wrap.querySelector('.emoji').textContent = cat.emoji;
+  if (wrap.dataset.cat !== cat.key) { wrap.dataset.cat = cat.key; wrap.style.setProperty('--tint', cat.color); }
   wrap.querySelector('.card-title').textContent = r.text;
   const sub = wrap.querySelector('.card-sub');
   const st = whenText(r) + (r.snoozedFrom ? ' · ertelendi' : '');
@@ -271,6 +316,7 @@ function renderHero(next, now) {
   if (box.dataset.state !== 'hero' || box.dataset.id !== next.id) {
     const isDrop = dropId === next.id;
     box.dataset.state = 'hero'; box.dataset.id = next.id;
+    box.style.setProperty('--tint', categoryOf(next.text).color);
     box.innerHTML = `<article class="hero glass${isDrop ? ' card-wrap drop' : ' tab-panel'}" aria-label="Sıradaki hatırlatıcı">
       <div class="hero-label"><span class="pulse" aria-hidden="true"></span>Sıradaki hatırlatıcı
         <button class="hero-del press" aria-label="Sıradaki hatırlatıcıyı sil"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button></div>
@@ -291,6 +337,7 @@ function renderHero(next, now) {
   }
   const d = new Date(next.at), ms = next.at - now;
   $('heroTask').textContent = next.text;
+  box.style.setProperty('--tint', categoryOf(next.text).color);
   $('heroTime').textContent = hhmm(d);
   $('heroDay').textContent = dayLabel(d, new Date());
   $('heroLeft').textContent = leftLong(ms);
@@ -377,7 +424,32 @@ function tick() {
 }
 
 /* ═══ 6. Giriş + canlı önizleme ═══ */
-const input = $('input'), ph = $('ph'), preview = $('preview'), hintEl = $('hint');
+const input = $('input'), ph = $('ph'), preview = $('preview'), hintEl = $('hint'), hlIn = $('hlIn');
+
+/* Yazarken vurgu: anlaşılan zaman ifadesi gradyanla parlar, görev beyaz, dolgu sözcükleri soluk kalır.
+   Yazı kutusunun arkasında aynı metni renkli çizen bir katman var; kutunun kendi yazısı saydam, imleci görünür. */
+function renderHighlight() {
+  const v = input.value;
+  if (!v.trim()) { hlIn.textContent = ''; input.classList.remove('hl-on'); return; }
+  let kinds = null;
+  try { kinds = parse(v, new Date()).sözcükTürleri; } catch (e) { kinds = null; }
+  const parts = v.split(/(\s+)/);
+  const words = parts.filter(x => x && !/^\s+$/.test(x));
+  if (!kinds || kinds.length !== words.length) { hlIn.textContent = v; input.classList.add('hl-on'); syncHlScroll(); return; }
+  let k = 0, out = '';
+  for (const part of parts) {
+    if (!part) continue;
+    if (/^\s+$/.test(part)) { out += esc(part); continue; }
+    const kind = kinds[k++];
+    out += `<span class="${kind === 'zaman' ? 'hz' : kind === 'dolgu' ? 'hd' : 'hg'}">${esc(part)}</span>`;
+  }
+  hlIn.innerHTML = out;
+  input.classList.add('hl-on');
+  syncHlScroll();
+}
+function syncHlScroll() { hlIn.style.transform = input.scrollLeft ? `translateX(${-input.scrollLeft}px)` : ''; }
+['input', 'keyup', 'click', 'focus', 'blur', 'select', 'scroll'].forEach(ev => input.addEventListener(ev, () => requestAnimationFrame(syncHlScroll)));
+document.addEventListener('selectionchange', () => { if (document.activeElement === input) requestAnimationFrame(syncHlScroll); });
 const PHRASES = ['Yarın sabah 9\'da toplantı…', '20 dakika sonra çamaşırı çıkar…', 'Cuma saat 15\'te doktor…', 'Akşam yedide annemi ara…', 'Yarım saat sonra su iç…'];
 const typer = (() => {
   let i = 0, pos = 0, dir = 1, timer = 0, running = false;
@@ -404,6 +476,7 @@ const typer = (() => {
 
 let previewTimer = 0;
 function updatePreview() {
+  renderHighlight();
   const v = input.value.trim();
   ph.hidden = !!input.value;
   syncSend();
@@ -418,7 +491,7 @@ function updatePreview() {
 }
 const sendBtn = $('sendBtn');
 function syncSend() { sendBtn.classList.toggle('show', !!input.value.trim()); }
-input.addEventListener('input', () => { ph.hidden = !!input.value; syncSend(); clearTimeout(previewTimer); previewTimer = setTimeout(updatePreview, 150); });
+input.addEventListener('input', () => { ph.hidden = !!input.value; syncSend(); renderHighlight(); clearTimeout(previewTimer); previewTimer = setTimeout(updatePreview, 150); });
 // Klavye kapalıyken de gönderilebilsin: önizleme satırına dokunmak da onay kartını açar
 preview.addEventListener('click', () => { if (input.value.trim()) $('form').requestSubmit ? $('form').requestSubmit() : sendBtn.click(); });
 $('form').addEventListener('submit', e => {
@@ -1404,13 +1477,15 @@ document.addEventListener('keydown', e => {
 function init() {
   loadState();
   if (reduceMQ.matches) document.body.classList.add('rm');
+  applyAtmosphere();
   stars.init();
+  setInterval(applyAtmosphere, 60000);
   render();
   typer.start();
   setInterval(tick, 1000);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { typer.stop(); return; }
-    typer.start(); render(); checkDue(); refreshBadge();
+    typer.start(); applyAtmosphere(); render(); checkDue(); refreshBadge();
     ensureSubscription(false).then(() => fullSync(true)).catch(() => {});
   });
 
@@ -1438,5 +1513,5 @@ function init() {
 
 init();
 // Test kancası (yalnızca otomatik testler için)
-window.__animsa = { get mic() { return L ? { mode: L.mode, analyser: !!L.analyser, chunks: L.chunks.length, rate: L.rate } : null; }, state, render, openSheet, draftFrom, openAlarm, setTab, toast, openPanel, finishOnboarding, showOnboarding, confetti };
+window.__animsa = { setHour(h) { atmosOverride = h; applyAtmosphere(); renderHeader(); }, atmosAt, get mic() { return L ? { mode: L.mode, analyser: !!L.analyser, chunks: L.chunks.length, rate: L.rate } : null; }, state, render, openSheet, draftFrom, openAlarm, setTab, toast, openPanel, finishOnboarding, showOnboarding, confetti };
 })();

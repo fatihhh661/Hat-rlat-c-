@@ -397,18 +397,21 @@ export function parse(metin, simdi) {
   /* ── 5) Görev metni ── */
   // Yan cümlelere böl (. , ; ! ? sonrası); yalnızca rica sözcüklerinden oluşanları at:
   // "Su içmem gerekiyor. Bana bunu hatırlat." → "Su içmem gerekiyor"
+  // (Sözcükler indeksle izlenir: arayüz her sözcüğün türünü — zaman / görev / dolgu — bilerek vurgular.)
   const clauses = [[]];
-  for (const t of T) {
-    if (!t.used) clauses[clauses.length - 1].push(t.raw);
+  T.forEach((t, i) => {
+    if (!t.used) clauses[clauses.length - 1].push(i);
     if (/[.,;!?…]["'’”]*$/.test(t.raw) && clauses[clauses.length - 1].length) clauses.push([]);
-  }
-  const isMeta = w => { const n = norm(w); return META_WORDS.has(n) || /^hatırlat/.test(n) || n === ''; };
-  let words = [].concat(...clauses.filter(c => c.length && !c.every(isMeta)));
-  words = words.filter(w => !ANY_FILLERS.has(norm(w)) && !/^hatırlat/.test(norm(w)));
-  const edge = w => EDGE_FILLERS.has(norm(w)) || norm(w) === '';
-  while (words.length && edge(words[0])) words.shift();
-  while (words.length && edge(words[words.length - 1])) words.pop();
-  let gorev = words.join(' ').replace(/^[\s,.;:–—-]+|[\s,.;:!?–—-]+$/g, '').replace(/\s+([,;])/g, '$1').trim();
+  });
+  const isMeta = i => { const n = T[i].n; return META_WORDS.has(n) || /^hatırlat/.test(n) || n === ''; };
+  let keep = [].concat(...clauses.filter(c => c.length && !c.every(isMeta)));
+  keep = keep.filter(i => !ANY_FILLERS.has(T[i].n) && !/^hatırlat/.test(T[i].n));
+  const edge = i => EDGE_FILLERS.has(T[i].n) || T[i].n === '';
+  while (keep.length && edge(keep[0])) keep.shift();
+  while (keep.length && edge(keep[keep.length - 1])) keep.pop();
+  const kept = new Set(keep);
+  const turler = T.map((t, i) => t.used ? 'zaman' : kept.has(i) ? 'görev' : 'dolgu');
+  let gorev = keep.map(i => T[i].raw).join(' ').replace(/^[\s,.;:–—-]+|[\s,.;:!?–—-]+$/g, '').replace(/\s+([,;])/g, '$1').trim();
   if (gorev) gorev = gorev.charAt(0).toLocaleUpperCase(TR) + gorev.slice(1);
   if (!gorev) gorev = 'Hatırlatıcı';
   if (gorev.length > 200) gorev = gorev.slice(0, 200).trim();
@@ -419,6 +422,7 @@ export function parse(metin, simdi) {
     saatBelirtildiMi,
     güven: Math.round(guven * 100) / 100,
     yarinaAtildi: rolled,
+    sözcükTürleri: turler,
     varsayilanSaat: !saatBelirtildiMi ? pad2(zaman.getHours()) + ':' + pad2(zaman.getMinutes()) : null
   };
 
@@ -467,20 +471,22 @@ export function dayLabel(d, now) {
 export function hhmm(d) { return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
 export function fullDate(d) { return GUNLER[d.getDay()] + ', ' + d.getDate() + ' ' + AYLAR[d.getMonth()]; }
 
-/* Göreve göre otomatik emoji (istemci kartları ve sunucu bildirimleri ortak kullanır) */
-const EMOJI_RULES = [
-  ['💊', /(^|\s)(ilaç|ilac|hap|vitamin|şurup|iğne)/],
-  ['🩺', /(^|\s)(doktor|dişçi|diş|hastane|muayene|tahlil|eczane|klinik)/],
-  ['✈️', /(^|\s)(uçak|uçuş|havalimanı|havaalanı|uçağ|check-in)/],
-  ['📞', /(^|\s)(ara$|ara\s|aran|aray|arama|telefon|tel\s|görüntülü)/],
-  ['👥', /(^|\s)(toplantı|görüşme|meeting|sunum|buluş|zoom|teams|mülakat)/],
-  ['🏋️', /(^|\s)(spor|koşu|yoga|pilates|antrenman|salon|yürüyüş|gym|fitness|yüzme)/],
-  ['🍽️', /(^|\s)(yemek|kahvaltı|akşam yemeği|öğle yemeği|restoran|pişir|fırın|çay|kahve)/],
-  ['💧', /(^|\s)(su\s|su$|sula|bardak su)/],
-  ['🛒', /(^|\s)(alışveriş|market|süt|ekmek|manav|bakkal|sipariş|kargo)/]
+/* Göreve göre otomatik emoji + renk (istemci kartları ve sunucu bildirimleri ortak kullanır) */
+const CATEGORIES = [
+  ['ilac',      '💊', '#FF5CAA', /(^|\s)(ilaç|ilac|hap|vitamin|şurup|iğne)/],
+  ['doktor',    '🩺', '#2EE6C9', /(^|\s)(doktor|dişçi|diş|hastane|muayene|tahlil|eczane|klinik)/],
+  ['ucus',      '✈️', '#5AB8FF', /(^|\s)(uçak|uçuş|havalimanı|havaalanı|uçağ|check-in)/],
+  ['arama',     '📞', '#3DFFB0', /(^|\s)(ara$|ara\s|aran|aray|arama|telefon|tel\s|görüntülü)/],
+  ['toplanti',  '👥', '#9B7BFF', /(^|\s)(toplantı|görüşme|meeting|sunum|buluş|zoom|teams|mülakat)/],
+  ['spor',      '🏋️', '#FF9F43', /(^|\s)(spor|koşu|yoga|pilates|antrenman|salon|yürüyüş|gym|fitness|yüzme)/],
+  ['yemek',     '🍽️', '#FFC857', /(^|\s)(yemek|kahvaltı|akşam yemeği|öğle yemeği|restoran|pişir|fırın|çay|kahve)/],
+  ['su',        '💧', '#19D3FF', /(^|\s)(su\s|su$|sula|bardak su)/],
+  ['alisveris', '🛒', '#B8F35A', /(^|\s)(alışveriş|market|süt|ekmek|manav|bakkal|sipariş|kargo)/]
 ];
-export function emojiFor(text) {
+const DEFAULT_CATEGORY = { key: 'genel', emoji: '🔔', color: '#A9B4FF' };
+export function categoryOf(text) {
   const t = lower(text) + ' ';
-  for (const [e, re] of EMOJI_RULES) if (re.test(t)) return e;
-  return '🔔';
+  for (const [key, emoji, color, re] of CATEGORIES) if (re.test(t)) return { key, emoji, color };
+  return DEFAULT_CATEGORY;
 }
+export function emojiFor(text) { return categoryOf(text).emoji; }

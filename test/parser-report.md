@@ -74,6 +74,9 @@
 | 68 | saniyeli "şimdi": "1 dakika sonra" tam dakikaya yuvarlanır (23:21:40 → 23:23:00) | doğru | doğru | ✅ |
 | 69 | saniyeli "şimdi": "20 dk sonra" (14:00:20 → 14:20:00) | doğru | doğru | ✅ |
 | 70 | yuvarlama asla geçmişe düşmez | doğru | doğru | ✅ |
-| 71 | yarına atıldı işareti | doğru | doğru | ✅ |
+| 71 | sözcük türleri: "yarın sabah 9'da toplantı hatırlat" → zaman×3, görev, dolgu | doğru | doğru | ✅ |
+| 72 | sözcük türleri: rica yan cümlesi dolgu sayılır | doğru | doğru | ✅ |
+| 73 | kategori rengi: ilaç pembe, arama yeşil, bilinmeyen varsayılan | doğru | doğru | ✅ |
+| 74 | yarına atıldı işareti | doğru | doğru | ✅ |
 
-**71/71 geçti**
+**74/74 geçti**

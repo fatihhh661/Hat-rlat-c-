@@ -1,6 +1,6 @@
 // Türkçe ayrıştırıcı testleri. Çalıştır: TZ=Europe/Istanbul node test/parser.test.mjs
 // "Şimdi" sabit: Salı, 24 Kasım 2026, 14:00 (yerel saat)
-import { parse } from '../src/parser.js';
+import { parse, categoryOf } from '../src/parser.js';
 import { writeFileSync } from 'node:fs';
 
 const NOW = new Date(2026, 10, 24, 14, 0, 0, 0);
@@ -101,6 +101,9 @@ const extra = [
   ['saniyeli "şimdi": "1 dakika sonra" tam dakikaya yuvarlanır (23:21:40 → 23:23:00)', (() => { const z = parse('1 dakika sonra su iç', new Date(2026, 10, 24, 23, 21, 40)).zaman; return z.getHours() === 23 && z.getMinutes() === 23 && z.getSeconds() === 0; })()],
   ['saniyeli "şimdi": "20 dk sonra" (14:00:20 → 14:20:00)', (() => { const z = parse('20 dk sonra', new Date(2026, 10, 24, 14, 0, 20)).zaman; return z.getMinutes() === 20 && z.getSeconds() === 0; })()],
   ['yuvarlama asla geçmişe düşmez', (() => { const n = new Date(2026, 10, 24, 14, 0, 50); return parse('10 saniye sonra', n).zaman > n; })()],
+  ['sözcük türleri: "yarın sabah 9\'da toplantı hatırlat" → zaman×3, görev, dolgu', (() => { const k = parse('yarın sabah 9\'da toplantı hatırlat', NOW).sözcükTürleri; return k.join() === 'zaman,zaman,zaman,görev,dolgu'; })()],
+  ['sözcük türleri: rica yan cümlesi dolgu sayılır', (() => { const k = parse('Su iç. Bana bunu hatırlat.', NOW).sözcükTürleri; return k.join() === 'görev,görev,dolgu,dolgu,dolgu'; })()],
+  ['kategori rengi: ilaç pembe, arama yeşil, bilinmeyen varsayılan', (() => { const m = parse; return categoryOf('İlacını iç').color === '#FF5CAA' && categoryOf('Annemi ara').key === 'arama' && categoryOf('Kurs').key === 'genel'; })()],
   ['yarına atıldı işareti', parse('saat 10\'da', NOW).yarinaAtildi === false && parse('saat 13:00', NOW).yarinaAtildi === true],
 ];
 for (const [name, ok] of extra) { rows.push({ text: name, exp: 'doğru', got: ok ? 'doğru' : 'YANLIŞ', ok }); if (ok) pass++; }

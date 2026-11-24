@@ -278,6 +278,32 @@ try {
     await ctx.close();
   }
 
+  /* ── 3c) Atmosfer, yazarken vurgu, renkli kartlar ── */
+  {
+    const { ctx, page } = await newPage({ onboarded: true, tag: 'gorsel' });
+    await wait(500);
+    const phases = {};
+    for (const [h, want] of [[8, 'sabah'], [13, 'oglen'], [19, 'aksam'], [1, 'gece']]) {
+      await page.evaluate(h => window.__animsa.setHour(h), h);
+      phases[want] = await page.evaluate(() => ({ phase: document.documentElement.dataset.phase, a1: document.documentElement.style.getPropertyValue('--a1').trim(), greet: document.getElementById('greet').textContent }));
+    }
+    ok('Atmosfer: 08 sabah, 13 öğlen, 19 akşam, 01 gece', phases.sabah.phase === 'sabah' && phases.oglen.phase === 'oglen' && phases.aksam.phase === 'aksam' && phases.gece.phase === 'gece', JSON.stringify(phases));
+    ok('Atmosfer: her evrede farklı renk', new Set(Object.values(phases).map(p => p.a1)).size === 4);
+    ok('Selamlama evreye uyuyor (Günaydın / İyi günler / İyi akşamlar / İyi geceler)', phases.sabah.greet === 'Günaydın' && phases.oglen.greet === 'İyi günler' && phases.aksam.greet === 'İyi akşamlar' && phases.gece.greet === 'İyi geceler');
+    ok('Atmosfer geçişi yumuşak (09:00 karışımı sabah ile öğlen arasında değil, 11:30 arada)', await page.evaluate(() => { const A = window.__animsa.atmosAt; return A(9).a1 === A(8).a1 && A(11.5).a1 !== A(8).a1 && A(11.5).a1 !== A(13).a1; }));
+    await page.click('#input'); await page.keyboard.type("yarın sabah 9'da toplantı hatırlat", { delay: 5 });
+    await wait(200);
+    const hl = await page.evaluate(() => ({ z: Array.from(document.querySelectorAll('#hlIn .hz')).map(e => e.textContent).join(' '), g: Array.from(document.querySelectorAll('#hlIn .hg')).map(e => e.textContent).join(' '), d: Array.from(document.querySelectorAll('#hlIn .hd')).map(e => e.textContent).join(' '), same: document.getElementById('hlIn').textContent === document.getElementById('input').value, on: document.getElementById('input').classList.contains('hl-on') }));
+    ok('Yazarken vurgu: zaman gradyanlı, görev beyaz, dolgu soluk; katman metni kutuyla birebir aynı', hl.z === "yarın sabah 9'da" && hl.g === 'toplantı' && hl.d === 'hatırlat' && hl.same && hl.on, JSON.stringify(hl));
+    await page.fill('#input', ''); await page.dispatchEvent('#input', 'input'); await wait(100);
+    ok('Kutu boşalınca vurgu katmanı temizleniyor', await page.evaluate(() => document.getElementById('hlIn').textContent === '' && !document.getElementById('input').classList.contains('hl-on')));
+    await page.evaluate(() => { const A = window.__animsa, n = Date.now(); [['Hero', 30], ['İlacını iç', 120], ['Annemi ara', 180], ['Kurs', 240]].forEach(([t, m]) => A.state.reminders.push({ id: crypto.randomUUID(), text: t, at: n + m * 60000, createdAt: n, synced: true, done: false })); A.render(); });
+    await wait(300);
+    const tints = await page.evaluate(() => Array.from(document.querySelectorAll('#list .card-wrap')).map(w => [w.dataset.cat, w.style.getPropertyValue('--tint')]));
+    ok('Renkli kartlar: ilaç pembe, arama yeşil, diğer varsayılan', JSON.stringify(tints) === JSON.stringify([['ilac', '#FF5CAA'], ['arama', '#3DFFB0'], ['genel', '#A9B4FF']]), JSON.stringify(tints));
+    await ctx.close();
+  }
+
   /* ── 4) Bozuk veri dayanıklılığı ── */
   {
     const { ctx, page } = await newPage({ tag: 'bozuk-veri', init: () => { localStorage.setItem('anımsa.reminders', '{bozuk'); localStorage.setItem('anımsa.settings', '[1,2'); localStorage.setItem('anımsa.uid', '42'); } });
