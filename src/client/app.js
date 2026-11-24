@@ -84,7 +84,7 @@ function validReminder(r) {
 const state = {
   reminders: [],
   uid: null,
-  settings: { onboarded: false, silent: false, lastSubAt: 0, pendingDeletes: [] },
+  settings: { onboarded: false, silent: false, lastSubAt: 0, pendingDeletes: [], tz: '' },
   tab: 'up'
 };
 function loadState() {
@@ -100,6 +100,7 @@ function loadState() {
     state.settings.onboarded = !!s.onboarded;
     state.settings.silent = !!s.silent;
     state.settings.lastSubAt = Number.isFinite(s.lastSubAt) ? s.lastSubAt : 0;
+    state.settings.tz = typeof s.tz === 'string' ? s.tz : '';
     state.settings.pendingDeletes = Array.isArray(s.pendingDeletes) ? s.pendingDeletes.filter(x => typeof x === 'string').slice(-200) : [];
   }
   prunePast();
@@ -1326,9 +1327,11 @@ async function ensureSubscription(force) {
   const json = sub.toJSON();
   const uid = await sha256Hex(json.endpoint);
   const changed = uid !== state.uid;
-  if (force || changed || Date.now() - state.settings.lastSubAt > 86400000) {
+  // Saat dilimi değiştiyse (ya da hiç gönderilmediyse) hemen bildir: bildirimdeki saat buna göre yazılır
+  const tz = userTz() || '';
+  if (force || changed || tz !== state.settings.tz || Date.now() - state.settings.lastSubAt > 86400000) {
     await api('/api/subscribe', { uid, sub: json, oldUid: changed && state.uid ? state.uid : undefined, silent: state.settings.silent, tz: userTz() });
-    state.uid = uid; state.settings.lastSubAt = Date.now(); save();
+    state.uid = uid; state.settings.lastSubAt = Date.now(); state.settings.tz = tz; save();
     if (changed) state.reminders.forEach(r => { r.synced = false; });
   }
   return true;

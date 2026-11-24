@@ -33,7 +33,9 @@ const PERIODS = {
 const PERIOD_DEFAULT = { sabah: 9, oglen: 12, ogleden: 15, ikindi: 16, aksamustu: 18, aksam: 20, gece: 22 };
 
 // Dolgu sözcükleri: kenarlardan temizlenir
-const EDGE_FILLERS = new Set(['saat', 'bana', 'beni', 'lütfen', 'kur', 'de', 'da', 've', 'için', 'olarak', 'sonra', 'tarihinde', 'günü', 'gün', 'hatırlatıcı', 'hatırlatma', 'hatırlatması', 'alarm', 'kadar', 'ile', 'ki', 'mi', 'mı']);
+const EDGE_FILLERS = new Set(['saat', 'bana', 'beni', 'bunu', 'şunu', 'lütfen', 'kur', 'de', 'da', 've', 'için', 'olarak', 'sonra', 'tarihinde', 'günü', 'gün', 'hatırlatıcı', 'hatırlatma', 'hatırlatması', 'alarm', 'kadar', 'ile', 'ki', 'mi', 'mı']);
+// Tek başına bir yan cümle oluşturduklarında atılan rica sözcükleri ("bana bunu hatırlatır mısın")
+const META_WORDS = new Set(['bana', 'beni', 'bunu', 'şunu', 'onu', 'bunları', 'lütfen', 'unutma', 'unutmayayım', 'unutturma', 'sakın', 'tamam', 'olur', 'mu', 'mı', 'mi', 'mü', 'musun', 'mısın', 'misin', 'de', 'da', 'ki', 've', 'yap', 'kur', 'alarm', 'not', 'al', 'et', 'eder', 'edebilir', 'etsene', 'hadi', 'acaba', 'benim', 'için', 'teşekkürler', 'sağol', 'sağ', 'ol']);
 // Her yerden silinen sözcükler
 const ANY_FILLERS = new Set(['hatırlat', 'hatırlatır', 'hatırlatsana', 'hatırlatırmısın', 'hatırlatırsın', 'hatırlatıver', 'mısın', 'misin', 'lütfen', 'hatırlatıcı', 'hatırlatıcısı', 'hatırlatma', 'hatırlatmayı', 'unutma', 'unutturma', 'kur']);
 
@@ -392,7 +394,15 @@ export function parse(metin, simdi) {
   }
 
   /* ── 5) Görev metni ── */
-  let words = T.filter(t => !t.used).map(t => t.raw);
+  // Yan cümlelere böl (. , ; ! ? sonrası); yalnızca rica sözcüklerinden oluşanları at:
+  // "Su içmem gerekiyor. Bana bunu hatırlat." → "Su içmem gerekiyor"
+  const clauses = [[]];
+  for (const t of T) {
+    if (!t.used) clauses[clauses.length - 1].push(t.raw);
+    if (/[.,;!?…]["'’”]*$/.test(t.raw) && clauses[clauses.length - 1].length) clauses.push([]);
+  }
+  const isMeta = w => { const n = norm(w); return META_WORDS.has(n) || /^hatırlat/.test(n) || n === ''; };
+  let words = [].concat(...clauses.filter(c => c.length && !c.every(isMeta)));
   words = words.filter(w => !ANY_FILLERS.has(norm(w)) && !/^hatırlat/.test(norm(w)));
   const edge = w => EDGE_FILLERS.has(norm(w)) || norm(w) === '';
   while (words.length && edge(words[0])) words.shift();

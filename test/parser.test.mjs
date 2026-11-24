@@ -70,6 +70,14 @@ const CASES = [
   ['yarın sabah', '2026-11-25 09:00', 'Hatırlatıcı', false],
   ['İLAÇ İÇ yarın 08:00', '2026-11-25 08:00', 'İLAÇ İÇ'],
   ['ışıkları kapat 23:15', '2026-11-24 23:15', 'Işıkları kapat'],
+  // — Whisper (sesli giriş) çıktısı: noktalama, büyük harf, rica cümleleri —
+  ['1 dakika sonra su içmem gerekiyor. Bana bunu hatırlat.', '2026-11-24 14:01', 'Su içmem gerekiyor'],
+  ['Yarın saat 10\'da toplantım var, bunu bana hatırlatır mısın?', '2026-11-25 10:00', 'Toplantım var'],
+  ['Akşam 8\'de annemi arayacağım, bana hatırlat.', '2026-11-24 20:00', 'Annemi arayacağım'],
+  ['Cuma günü saat 3\'te dişçiye gideceğim. Lütfen unutma.', '2026-11-27 15:00', 'Dişçiye gideceğim'],
+  ['Yarım saat sonra fırındaki keki çıkar, tamam mı?', '2026-11-24 14:30', 'Fırındaki keki çıkar'],
+  ['Bana yarın sabah ilacımı içmemi hatırlatır mısın?', '2026-11-25 09:00', 'İlacımı içmemi', false],
+  ['Saat 18:30\'da Ahmet\'le buluşacağız, bana haber ver, unutmayayım.', '2026-11-24 18:30', 'Ahmet\'le buluşacağız, bana haber ver'],
 ];
 
 let pass = 0;

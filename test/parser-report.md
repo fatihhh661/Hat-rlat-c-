@@ -60,10 +60,17 @@
 | 54 | yarın sabah | 2026-11-25 09:00 • Hatırlatıcı (saat yok) | 2026-11-25 09:00 • Hatırlatıcı (saat yok) | ✅ |
 | 55 | İLAÇ İÇ yarın 08:00 | 2026-11-25 08:00 • İLAÇ İÇ | 2026-11-25 08:00 • İLAÇ İÇ | ✅ |
 | 56 | ışıkları kapat 23:15 | 2026-11-24 23:15 • Işıkları kapat | 2026-11-24 23:15 • Işıkları kapat | ✅ |
-| 57 | tr-TR küçük harf: "İSTANBUL'DA saat 10'da" | doğru | doğru | ✅ |
-| 58 | boş metin çökmez | doğru | doğru | ✅ |
-| 59 | null çökmez | doğru | doğru | ✅ |
-| 60 | güven alanı 0..1 | doğru | doğru | ✅ |
-| 61 | yarına atıldı işareti | doğru | doğru | ✅ |
+| 57 | 1 dakika sonra su içmem gerekiyor. Bana bunu hatırlat. | 2026-11-24 14:01 • Su içmem gerekiyor | 2026-11-24 14:01 • Su içmem gerekiyor | ✅ |
+| 58 | Yarın saat 10'da toplantım var, bunu bana hatırlatır mısın? | 2026-11-25 10:00 • Toplantım var | 2026-11-25 10:00 • Toplantım var | ✅ |
+| 59 | Akşam 8'de annemi arayacağım, bana hatırlat. | 2026-11-24 20:00 • Annemi arayacağım | 2026-11-24 20:00 • Annemi arayacağım | ✅ |
+| 60 | Cuma günü saat 3'te dişçiye gideceğim. Lütfen unutma. | 2026-11-27 15:00 • Dişçiye gideceğim | 2026-11-27 15:00 • Dişçiye gideceğim | ✅ |
+| 61 | Yarım saat sonra fırındaki keki çıkar, tamam mı? | 2026-11-24 14:30 • Fırındaki keki çıkar | 2026-11-24 14:30 • Fırındaki keki çıkar | ✅ |
+| 62 | Bana yarın sabah ilacımı içmemi hatırlatır mısın? | 2026-11-25 09:00 • İlacımı içmemi (saat yok) | 2026-11-25 09:00 • İlacımı içmemi (saat yok) | ✅ |
+| 63 | Saat 18:30'da Ahmet'le buluşacağız, bana haber ver, unutmayayım. | 2026-11-24 18:30 • Ahmet'le buluşacağız, bana haber ver | 2026-11-24 18:30 • Ahmet'le buluşacağız, bana haber ver | ✅ |
+| 64 | tr-TR küçük harf: "İSTANBUL'DA saat 10'da" | doğru | doğru | ✅ |
+| 65 | boş metin çökmez | doğru | doğru | ✅ |
+| 66 | null çökmez | doğru | doğru | ✅ |
+| 67 | güven alanı 0..1 | doğru | doğru | ✅ |
+| 68 | yarına atıldı işareti | doğru | doğru | ✅ |
 
-**61/61 geçti**
+**68/68 geçti**
