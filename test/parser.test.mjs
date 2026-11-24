@@ -65,7 +65,7 @@ const CASES = [
   ['akşam 7 Mehmet\'le buluş', '2026-11-24 19:00', 'Mehmet\'le buluş'],
   // — Saat yok / dolgu sözcükleri —
   ['süt al', '2026-11-25 09:00', 'Süt al', false],
-  ['lütfen bana yarın ilacımı içmemi hatırlat', '2026-11-25 09:00', 'İlacımı içmemi', false],
+  ['lütfen bana yarın ilacımı içmemi hatırlat', '2026-11-25 09:00', 'İlacımı iç', false],
   ['hatırlatıcı kur yarın 10:00 İstanbul toplantısı', '2026-11-25 10:00', 'İstanbul toplantısı'],
   ['yarın sabah', '2026-11-25 09:00', 'Hatırlatıcı', false],
   ['İLAÇ İÇ yarın 08:00', '2026-11-25 08:00', 'İLAÇ İÇ'],
@@ -76,7 +76,16 @@ const CASES = [
   ['Akşam 8\'de annemi arayacağım, bana hatırlat.', '2026-11-24 20:00', 'Annemi arayacağım'],
   ['Cuma günü saat 3\'te dişçiye gideceğim. Lütfen unutma.', '2026-11-27 15:00', 'Dişçiye gideceğim'],
   ['Yarım saat sonra fırındaki keki çıkar, tamam mı?', '2026-11-24 14:30', 'Fırındaki keki çıkar'],
-  ['Bana yarın sabah ilacımı içmemi hatırlatır mısın?', '2026-11-25 09:00', 'İlacımı içmemi', false],
+  ['Bana yarın sabah ilacımı içmemi hatırlatır mısın?', '2026-11-25 09:00', 'İlacımı iç', false],
+  // — Rica kalıbında fiil emir kipine çevrilir; Whisper'ın "hatırlar" yazımı —
+  ['Yarın sabah 8\'de evden çıkarken kulaklığımı alacağımı hatırlar', '2026-11-25 08:00', 'Evden çıkarken kulaklığımı al'],
+  ['Yarın sabah 8\'de evden çıkarken kulaklığımı alacağımı hatırlat.', '2026-11-25 08:00', 'Evden çıkarken kulaklığımı al'],
+  ['Akşam 9\'da annemi aramamı hatırlat', '2026-11-24 21:00', 'Annemi ara'],
+  ['Cuma 10\'da bankaya gideceğimi hatırlat', '2026-11-27 10:00', 'Bankaya git'],
+  ['Yarın 18\'de arabayı yıkayacağımı bana hatırlatır mısın', '2026-11-25 18:00', 'Arabayı yıka'],
+  ['2 saat sonra faturaları ödemeyi hatırlat', '2026-11-24 16:00', 'Faturaları öde'],
+  ['yarın 10\'da mailleri kontrol etmemi hatırla', '2026-11-25 10:00', 'Mailleri kontrol et'],
+  ['bu akşam 8\'de alacağım ekmeği unutma', '2026-11-24 20:00', 'Alacağım ekmeği'],
   ['Saat 18:30\'da Ahmet\'le buluşacağız, bana haber ver, unutmayayım.', '2026-11-24 18:30', 'Ahmet\'le buluşacağız, bana haber ver'],
 ];
 

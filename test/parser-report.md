@@ -55,7 +55,7 @@
 | 49 | gece 11'de ışıkları kapat | 2026-11-24 23:00 • Işıkları kapat | 2026-11-24 23:00 • Işıkları kapat | ✅ |
 | 50 | akşam 7 Mehmet'le buluş | 2026-11-24 19:00 • Mehmet'le buluş | 2026-11-24 19:00 • Mehmet'le buluş | ✅ |
 | 51 | süt al | 2026-11-25 09:00 • Süt al (saat yok) | 2026-11-25 09:00 • Süt al (saat yok) | ✅ |
-| 52 | lütfen bana yarın ilacımı içmemi hatırlat | 2026-11-25 09:00 • İlacımı içmemi (saat yok) | 2026-11-25 09:00 • İlacımı içmemi (saat yok) | ✅ |
+| 52 | lütfen bana yarın ilacımı içmemi hatırlat | 2026-11-25 09:00 • İlacımı iç (saat yok) | 2026-11-25 09:00 • İlacımı iç (saat yok) | ✅ |
 | 53 | hatırlatıcı kur yarın 10:00 İstanbul toplantısı | 2026-11-25 10:00 • İstanbul toplantısı | 2026-11-25 10:00 • İstanbul toplantısı | ✅ |
 | 54 | yarın sabah | 2026-11-25 09:00 • Hatırlatıcı (saat yok) | 2026-11-25 09:00 • Hatırlatıcı (saat yok) | ✅ |
 | 55 | İLAÇ İÇ yarın 08:00 | 2026-11-25 08:00 • İLAÇ İÇ | 2026-11-25 08:00 • İLAÇ İÇ | ✅ |
@@ -65,18 +65,26 @@
 | 59 | Akşam 8'de annemi arayacağım, bana hatırlat. | 2026-11-24 20:00 • Annemi arayacağım | 2026-11-24 20:00 • Annemi arayacağım | ✅ |
 | 60 | Cuma günü saat 3'te dişçiye gideceğim. Lütfen unutma. | 2026-11-27 15:00 • Dişçiye gideceğim | 2026-11-27 15:00 • Dişçiye gideceğim | ✅ |
 | 61 | Yarım saat sonra fırındaki keki çıkar, tamam mı? | 2026-11-24 14:30 • Fırındaki keki çıkar | 2026-11-24 14:30 • Fırındaki keki çıkar | ✅ |
-| 62 | Bana yarın sabah ilacımı içmemi hatırlatır mısın? | 2026-11-25 09:00 • İlacımı içmemi (saat yok) | 2026-11-25 09:00 • İlacımı içmemi (saat yok) | ✅ |
-| 63 | Saat 18:30'da Ahmet'le buluşacağız, bana haber ver, unutmayayım. | 2026-11-24 18:30 • Ahmet'le buluşacağız, bana haber ver | 2026-11-24 18:30 • Ahmet'le buluşacağız, bana haber ver | ✅ |
-| 64 | tr-TR küçük harf: "İSTANBUL'DA saat 10'da" | doğru | doğru | ✅ |
-| 65 | boş metin çökmez | doğru | doğru | ✅ |
-| 66 | null çökmez | doğru | doğru | ✅ |
-| 67 | güven alanı 0..1 | doğru | doğru | ✅ |
-| 68 | saniyeli "şimdi": "1 dakika sonra" tam dakikaya yuvarlanır (23:21:40 → 23:23:00) | doğru | doğru | ✅ |
-| 69 | saniyeli "şimdi": "20 dk sonra" (14:00:20 → 14:20:00) | doğru | doğru | ✅ |
-| 70 | yuvarlama asla geçmişe düşmez | doğru | doğru | ✅ |
-| 71 | sözcük türleri: "yarın sabah 9'da toplantı hatırlat" → zaman×3, görev, dolgu | doğru | doğru | ✅ |
-| 72 | sözcük türleri: rica yan cümlesi dolgu sayılır | doğru | doğru | ✅ |
-| 73 | kategori rengi: ilaç pembe, arama yeşil, bilinmeyen varsayılan | doğru | doğru | ✅ |
-| 74 | yarına atıldı işareti | doğru | doğru | ✅ |
+| 62 | Bana yarın sabah ilacımı içmemi hatırlatır mısın? | 2026-11-25 09:00 • İlacımı iç (saat yok) | 2026-11-25 09:00 • İlacımı iç (saat yok) | ✅ |
+| 63 | Yarın sabah 8'de evden çıkarken kulaklığımı alacağımı hatırlar | 2026-11-25 08:00 • Evden çıkarken kulaklığımı al | 2026-11-25 08:00 • Evden çıkarken kulaklığımı al | ✅ |
+| 64 | Yarın sabah 8'de evden çıkarken kulaklığımı alacağımı hatırlat. | 2026-11-25 08:00 • Evden çıkarken kulaklığımı al | 2026-11-25 08:00 • Evden çıkarken kulaklığımı al | ✅ |
+| 65 | Akşam 9'da annemi aramamı hatırlat | 2026-11-24 21:00 • Annemi ara | 2026-11-24 21:00 • Annemi ara | ✅ |
+| 66 | Cuma 10'da bankaya gideceğimi hatırlat | 2026-11-27 10:00 • Bankaya git | 2026-11-27 10:00 • Bankaya git | ✅ |
+| 67 | Yarın 18'de arabayı yıkayacağımı bana hatırlatır mısın | 2026-11-25 18:00 • Arabayı yıka | 2026-11-25 18:00 • Arabayı yıka | ✅ |
+| 68 | 2 saat sonra faturaları ödemeyi hatırlat | 2026-11-24 16:00 • Faturaları öde | 2026-11-24 16:00 • Faturaları öde | ✅ |
+| 69 | yarın 10'da mailleri kontrol etmemi hatırla | 2026-11-25 10:00 • Mailleri kontrol et | 2026-11-25 10:00 • Mailleri kontrol et | ✅ |
+| 70 | bu akşam 8'de alacağım ekmeği unutma | 2026-11-24 20:00 • Alacağım ekmeği | 2026-11-24 20:00 • Alacağım ekmeği | ✅ |
+| 71 | Saat 18:30'da Ahmet'le buluşacağız, bana haber ver, unutmayayım. | 2026-11-24 18:30 • Ahmet'le buluşacağız, bana haber ver | 2026-11-24 18:30 • Ahmet'le buluşacağız, bana haber ver | ✅ |
+| 72 | tr-TR küçük harf: "İSTANBUL'DA saat 10'da" | doğru | doğru | ✅ |
+| 73 | boş metin çökmez | doğru | doğru | ✅ |
+| 74 | null çökmez | doğru | doğru | ✅ |
+| 75 | güven alanı 0..1 | doğru | doğru | ✅ |
+| 76 | saniyeli "şimdi": "1 dakika sonra" tam dakikaya yuvarlanır (23:21:40 → 23:23:00) | doğru | doğru | ✅ |
+| 77 | saniyeli "şimdi": "20 dk sonra" (14:00:20 → 14:20:00) | doğru | doğru | ✅ |
+| 78 | yuvarlama asla geçmişe düşmez | doğru | doğru | ✅ |
+| 79 | sözcük türleri: "yarın sabah 9'da toplantı hatırlat" → zaman×3, görev, dolgu | doğru | doğru | ✅ |
+| 80 | sözcük türleri: rica yan cümlesi dolgu sayılır | doğru | doğru | ✅ |
+| 81 | kategori rengi: ilaç pembe, arama yeşil, bilinmeyen varsayılan | doğru | doğru | ✅ |
+| 82 | yarına atıldı işareti | doğru | doğru | ✅ |
 
-**74/74 geçti**
+**82/82 geçti**

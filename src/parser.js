@@ -403,15 +403,20 @@ export function parse(metin, simdi) {
     if (!t.used) clauses[clauses.length - 1].push(i);
     if (/[.,;!?…]["'’”]*$/.test(t.raw) && clauses[clauses.length - 1].length) clauses.push([]);
   });
-  const isMeta = i => { const n = T[i].n; return META_WORDS.has(n) || /^hatırlat/.test(n) || n === ''; };
+  const REQ = /^hatırla/;   // hatırlat, hatırla, hatırlar (Whisper bazen "hatırlat"ı "hatırlar" yazar), hatırlatır mısın…
+  const isMeta = i => { const n = T[i].n; return META_WORDS.has(n) || REQ.test(n) || n === ''; };
   let keep = [].concat(...clauses.filter(c => c.length && !c.every(isMeta)));
-  keep = keep.filter(i => !ANY_FILLERS.has(T[i].n) && !/^hatırlat/.test(T[i].n));
+  keep = keep.filter(i => !ANY_FILLERS.has(T[i].n) && !REQ.test(T[i].n));
   const edge = i => EDGE_FILLERS.has(T[i].n) || T[i].n === '';
   while (keep.length && edge(keep[0])) keep.shift();
   while (keep.length && edge(keep[keep.length - 1])) keep.pop();
   const kept = new Set(keep);
   const turler = T.map((t, i) => t.used ? 'zaman' : kept.has(i) ? 'görev' : 'dolgu');
-  let gorev = keep.map(i => T[i].raw).join(' ').replace(/^[\s,.;:–—-]+|[\s,.;:!?–—-]+$/g, '').replace(/\s+([,;])/g, '$1').trim();
+  // "…kulaklığımı alacağımı hatırlat" → "…kulaklığımı al": rica varsa son fiili emir kipine çevir
+  const asked = T.some(t => !t.used && REQ.test(t.n));
+  const words = keep.map(i => T[i].raw);
+  if (asked && words.length >= 2) words[words.length - 1] = toImperative(words[words.length - 1]);
+  let gorev = words.join(' ').replace(/^[\s,.;:–—-]+|[\s,.;:!?–—-]+$/g, '').replace(/\s+([,;])/g, '$1').trim();
   if (gorev) gorev = gorev.charAt(0).toLocaleUpperCase(TR) + gorev.slice(1);
   if (!gorev) gorev = 'Hatırlatıcı';
   if (gorev.length > 200) gorev = gorev.slice(0, 200).trim();
@@ -447,6 +452,26 @@ export function parse(metin, simdi) {
 }
 
 function pad2(n) { return String(n).padStart(2, '0'); }
+
+/** "alacağımı" → "al", "aramamı" → "ara", "içmemi" → "iç", "gideceğimi" → "git". Tanımazsa sözcüğü olduğu gibi döndürür. */
+const NOMINAL = ['acağımızı', 'eceğimizi', 'acağımı', 'eceğimi', 'acağını', 'eceğini', 'masını', 'mesini', 'mamızı', 'memizi', 'mamı', 'memi', 'mayı', 'meyi'];
+const SOFT = { gid: 'git', ed: 'et', did: 'dit', tad: 'tat', güd: 'güt' };
+function toImperative(word) {
+  const m = String(word).match(/^(.*?)([.,!?;:…]*)$/);
+  const body = m[1], tail = m[2];
+  const low = lower(body);
+  for (const suf of NOMINAL) {
+    if (low.length > suf.length + 1 && low.endsWith(suf)) {
+      let stem = body.slice(0, body.length - suf.length);
+      const ls = lower(stem);
+      if (SOFT[ls]) stem = SOFT[ls];
+      else if (/[aeıioöuü]y$/.test(ls)) stem = stem.slice(0, -1);     // yıkayacağımı → yıka
+      if (stem.length < 2) return word;
+      return stem + tail;
+    }
+  }
+  return word;
+}
 /** En yakın tam dakikaya yuvarlar; sonuç "şimdi"den önce ya da ona eşit olursa bir dakika ileri alır. */
 export function roundToMinute(ms, nowMs) {
   let r = Math.round(ms / 60000) * 60000;
