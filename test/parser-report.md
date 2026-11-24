@@ -21,15 +21,15 @@
 | 15 | ikide toplantı var | 2026-11-25 14:00 • Toplantı var | 2026-11-25 14:00 • Toplantı var | ✅ |
 | 16 | üçte kahve molası | 2026-11-24 15:00 • Kahve molası | 2026-11-24 15:00 • Kahve molası | ✅ |
 | 17 | on ikide öğle yemeği | 2026-11-25 12:00 • Öğle yemeği | 2026-11-25 12:00 • Öğle yemeği | ✅ |
-| 18 | saat dörtte annemi ara | 2026-11-24 16:00 • Annemi ara | 2026-11-24 16:00 • Annemi ara | ✅ |
+| 18 | saat dörtte annemi ara | 2026-11-24 16:00 • Anneni ara | 2026-11-24 16:00 • Anneni ara | ✅ |
 | 19 | yedi buçukta yemek yap | 2026-11-24 19:30 • Yemek yap | 2026-11-24 19:30 • Yemek yap | ✅ |
 | 20 | saat 05:30'da uçağa yetiş | 2026-11-25 05:30 • Uçağa yetiş | 2026-11-25 05:30 • Uçağa yetiş | ✅ |
 | 21 | dokuzu çeyrek geçe dizi başlıyor | 2026-11-24 21:15 • Dizi başlıyor | 2026-11-24 21:15 • Dizi başlıyor | ✅ |
 | 22 | beşe çeyrek var otobüs | 2026-11-24 16:45 • Otobüs | 2026-11-24 16:45 • Otobüs | ✅ |
-| 23 | 2 saat sonra ilacımı hatırlat | 2026-11-24 16:00 • İlacımı | 2026-11-24 16:00 • İlacımı | ✅ |
+| 23 | 2 saat sonra ilacımı hatırlat | 2026-11-24 16:00 • İlacını | 2026-11-24 16:00 • İlacını | ✅ |
 | 24 | iki buçuk saat sonra çocukları al | 2026-11-24 16:30 • Çocukları al | 2026-11-24 16:30 • Çocukları al | ✅ |
 | 25 | 45 dakika sonra toplantıya katıl | 2026-11-24 14:45 • Toplantıya katıl | 2026-11-24 14:45 • Toplantıya katıl | ✅ |
-| 26 | yarım saat içinde çıkmam lazım | 2026-11-24 14:30 • Çıkmam lazım | 2026-11-24 14:30 • Çıkmam lazım | ✅ |
+| 26 | yarım saat içinde çıkmam lazım | 2026-11-24 14:30 • Çık | 2026-11-24 14:30 • Çık | ✅ |
 | 27 | bir saate kadar maili gönder | 2026-11-24 15:00 • Maili gönder | 2026-11-24 15:00 • Maili gönder | ✅ |
 | 28 | 1 saat 15 dakika sonra kek | 2026-11-24 15:15 • Kek | 2026-11-24 15:15 • Kek | ✅ |
 | 29 | yirmi beş dakika sonra çayı demle | 2026-11-24 14:25 • Çayı demle | 2026-11-24 14:25 • Çayı demle | ✅ |
@@ -37,7 +37,7 @@
 | 31 | 1 hafta sonra saat 11'de diş kontrolü | 2026-12-01 11:00 • Diş kontrolü | 2026-12-01 11:00 • Diş kontrolü | ✅ |
 | 32 | çeyrek saat sonra fırına bak | 2026-11-24 14:15 • Fırına bak | 2026-11-24 14:15 • Fırına bak | ✅ |
 | 33 | bu akşam 20:00 film izle | 2026-11-24 20:00 • Film izle | 2026-11-24 20:00 • Film izle | ✅ |
-| 34 | bu akşam annemi ara | 2026-11-24 20:00 • Annemi ara (saat yok) | 2026-11-24 20:00 • Annemi ara (saat yok) | ✅ |
+| 34 | bu akşam annemi ara | 2026-11-24 20:00 • Anneni ara (saat yok) | 2026-11-24 20:00 • Anneni ara (saat yok) | ✅ |
 | 35 | yarın öğleden sonra 3'te banka | 2026-11-25 15:00 • Banka | 2026-11-25 15:00 • Banka | ✅ |
 | 36 | ertesi gün sabah 8 de koşu | 2026-11-26 08:00 • Koşu | 2026-11-26 08:00 • Koşu | ✅ |
 | 37 | yarından sonra saat 9'da dişçi | 2026-11-26 09:00 • Dişçi | 2026-11-26 09:00 • Dişçi | ✅ |
@@ -55,36 +55,59 @@
 | 49 | gece 11'de ışıkları kapat | 2026-11-24 23:00 • Işıkları kapat | 2026-11-24 23:00 • Işıkları kapat | ✅ |
 | 50 | akşam 7 Mehmet'le buluş | 2026-11-24 19:00 • Mehmet'le buluş | 2026-11-24 19:00 • Mehmet'le buluş | ✅ |
 | 51 | süt al | 2026-11-25 09:00 • Süt al (saat yok) | 2026-11-25 09:00 • Süt al (saat yok) | ✅ |
-| 52 | lütfen bana yarın ilacımı içmemi hatırlat | 2026-11-25 09:00 • İlacımı iç (saat yok) | 2026-11-25 09:00 • İlacımı iç (saat yok) | ✅ |
+| 52 | lütfen bana yarın ilacımı içmemi hatırlat | 2026-11-25 09:00 • İlacını iç (saat yok) | 2026-11-25 09:00 • İlacını iç (saat yok) | ✅ |
 | 53 | hatırlatıcı kur yarın 10:00 İstanbul toplantısı | 2026-11-25 10:00 • İstanbul toplantısı | 2026-11-25 10:00 • İstanbul toplantısı | ✅ |
 | 54 | yarın sabah | 2026-11-25 09:00 • Hatırlatıcı (saat yok) | 2026-11-25 09:00 • Hatırlatıcı (saat yok) | ✅ |
 | 55 | İLAÇ İÇ yarın 08:00 | 2026-11-25 08:00 • İLAÇ İÇ | 2026-11-25 08:00 • İLAÇ İÇ | ✅ |
 | 56 | ışıkları kapat 23:15 | 2026-11-24 23:15 • Işıkları kapat | 2026-11-24 23:15 • Işıkları kapat | ✅ |
-| 57 | 1 dakika sonra su içmem gerekiyor. Bana bunu hatırlat. | 2026-11-24 14:01 • Su içmem gerekiyor | 2026-11-24 14:01 • Su içmem gerekiyor | ✅ |
-| 58 | Yarın saat 10'da toplantım var, bunu bana hatırlatır mısın? | 2026-11-25 10:00 • Toplantım var | 2026-11-25 10:00 • Toplantım var | ✅ |
-| 59 | Akşam 8'de annemi arayacağım, bana hatırlat. | 2026-11-24 20:00 • Annemi arayacağım | 2026-11-24 20:00 • Annemi arayacağım | ✅ |
-| 60 | Cuma günü saat 3'te dişçiye gideceğim. Lütfen unutma. | 2026-11-27 15:00 • Dişçiye gideceğim | 2026-11-27 15:00 • Dişçiye gideceğim | ✅ |
+| 57 | 1 dakika sonra su içmem gerekiyor. Bana bunu hatırlat. | 2026-11-24 14:01 • Su iç | 2026-11-24 14:01 • Su iç | ✅ |
+| 58 | Yarın saat 10'da toplantım var, bunu bana hatırlatır mısın? | 2026-11-25 10:00 • Toplantın var | 2026-11-25 10:00 • Toplantın var | ✅ |
+| 59 | Akşam 8'de annemi arayacağım, bana hatırlat. | 2026-11-24 20:00 • Anneni ara | 2026-11-24 20:00 • Anneni ara | ✅ |
+| 60 | Cuma günü saat 3'te dişçiye gideceğim. Lütfen unutma. | 2026-11-27 15:00 • Dişçiye git | 2026-11-27 15:00 • Dişçiye git | ✅ |
 | 61 | Yarım saat sonra fırındaki keki çıkar, tamam mı? | 2026-11-24 14:30 • Fırındaki keki çıkar | 2026-11-24 14:30 • Fırındaki keki çıkar | ✅ |
-| 62 | Bana yarın sabah ilacımı içmemi hatırlatır mısın? | 2026-11-25 09:00 • İlacımı iç (saat yok) | 2026-11-25 09:00 • İlacımı iç (saat yok) | ✅ |
-| 63 | Yarın sabah 8'de evden çıkarken kulaklığımı alacağımı hatırlar | 2026-11-25 08:00 • Evden çıkarken kulaklığımı al | 2026-11-25 08:00 • Evden çıkarken kulaklığımı al | ✅ |
-| 64 | Yarın sabah 8'de evden çıkarken kulaklığımı alacağımı hatırlat. | 2026-11-25 08:00 • Evden çıkarken kulaklığımı al | 2026-11-25 08:00 • Evden çıkarken kulaklığımı al | ✅ |
-| 65 | Akşam 9'da annemi aramamı hatırlat | 2026-11-24 21:00 • Annemi ara | 2026-11-24 21:00 • Annemi ara | ✅ |
+| 62 | Bana yarın sabah ilacımı içmemi hatırlatır mısın? | 2026-11-25 09:00 • İlacını iç (saat yok) | 2026-11-25 09:00 • İlacını iç (saat yok) | ✅ |
+| 63 | Yarın sabah 8'de evden çıkarken kulaklığımı alacağımı hatırlar | 2026-11-25 08:00 • Evden çıkarken kulaklığını al | 2026-11-25 08:00 • Evden çıkarken kulaklığını al | ✅ |
+| 64 | Yarın sabah 8'de evden çıkarken kulaklığımı alacağımı hatırlat. | 2026-11-25 08:00 • Evden çıkarken kulaklığını al | 2026-11-25 08:00 • Evden çıkarken kulaklığını al | ✅ |
+| 65 | Akşam 9'da annemi aramamı hatırlat | 2026-11-24 21:00 • Anneni ara | 2026-11-24 21:00 • Anneni ara | ✅ |
 | 66 | Cuma 10'da bankaya gideceğimi hatırlat | 2026-11-27 10:00 • Bankaya git | 2026-11-27 10:00 • Bankaya git | ✅ |
 | 67 | Yarın 18'de arabayı yıkayacağımı bana hatırlatır mısın | 2026-11-25 18:00 • Arabayı yıka | 2026-11-25 18:00 • Arabayı yıka | ✅ |
 | 68 | 2 saat sonra faturaları ödemeyi hatırlat | 2026-11-24 16:00 • Faturaları öde | 2026-11-24 16:00 • Faturaları öde | ✅ |
 | 69 | yarın 10'da mailleri kontrol etmemi hatırla | 2026-11-25 10:00 • Mailleri kontrol et | 2026-11-25 10:00 • Mailleri kontrol et | ✅ |
-| 70 | bu akşam 8'de alacağım ekmeği unutma | 2026-11-24 20:00 • Alacağım ekmeği | 2026-11-24 20:00 • Alacağım ekmeği | ✅ |
-| 71 | Saat 18:30'da Ahmet'le buluşacağız, bana haber ver, unutmayayım. | 2026-11-24 18:30 • Ahmet'le buluşacağız, bana haber ver | 2026-11-24 18:30 • Ahmet'le buluşacağız, bana haber ver | ✅ |
-| 72 | tr-TR küçük harf: "İSTANBUL'DA saat 10'da" | doğru | doğru | ✅ |
-| 73 | boş metin çökmez | doğru | doğru | ✅ |
-| 74 | null çökmez | doğru | doğru | ✅ |
-| 75 | güven alanı 0..1 | doğru | doğru | ✅ |
-| 76 | saniyeli "şimdi": "1 dakika sonra" tam dakikaya yuvarlanır (23:21:40 → 23:23:00) | doğru | doğru | ✅ |
-| 77 | saniyeli "şimdi": "20 dk sonra" (14:00:20 → 14:20:00) | doğru | doğru | ✅ |
-| 78 | yuvarlama asla geçmişe düşmez | doğru | doğru | ✅ |
-| 79 | sözcük türleri: "yarın sabah 9'da toplantı hatırlat" → zaman×3, görev, dolgu | doğru | doğru | ✅ |
-| 80 | sözcük türleri: rica yan cümlesi dolgu sayılır | doğru | doğru | ✅ |
-| 81 | kategori rengi: ilaç pembe, arama yeşil, bilinmeyen varsayılan | doğru | doğru | ✅ |
-| 82 | yarına atıldı işareti | doğru | doğru | ✅ |
+| 70 | Sabah 8'de kulaklığımı alacağımı hatırlat | 2026-11-25 08:00 • Kulaklığını al | 2026-11-25 08:00 • Kulaklığını al | ✅ |
+| 71 | Saat 8'de annemi arayacağım | 2026-11-24 20:00 • Anneni ara | 2026-11-24 20:00 • Anneni ara | ✅ |
+| 72 | Cuma 10'da bankaya gideceğim | 2026-11-27 10:00 • Bankaya git | 2026-11-27 10:00 • Bankaya git | ✅ |
+| 73 | Yarın 9'da arabamı servise götüreceğim | 2026-11-25 09:00 • Arabanı servise götür | 2026-11-25 09:00 • Arabanı servise götür | ✅ |
+| 74 | 16:30'da kardeşimi okuldan alacağım | 2026-11-24 16:30 • Kardeşini okuldan al | 2026-11-24 16:30 • Kardeşini okuldan al | ✅ |
+| 75 | Akşam 7'de Ahmet'le buluşacağım | 2026-11-24 19:00 • Ahmet'le buluş | 2026-11-24 19:00 • Ahmet'le buluş | ✅ |
+| 76 | 1 dakika sonra su içmem gerekiyor | 2026-11-24 14:01 • Su iç | 2026-11-24 14:01 • Su iç | ✅ |
+| 77 | Akşam 8'de annemle konuşmam lazım | 2026-11-24 20:00 • Annenle konuş | 2026-11-24 20:00 • Annenle konuş | ✅ |
+| 78 | Yarın 10'da faturaları ödemem gerek | 2026-11-25 10:00 • Faturaları öde | 2026-11-25 10:00 • Faturaları öde | ✅ |
+| 79 | Cuma 15'te doktor randevum var | 2026-11-27 15:00 • Doktor randevun var | 2026-11-27 15:00 • Doktor randevun var | ✅ |
+| 80 | Yarın annemin doğum günü | 2026-11-25 09:00 • Annenin doğum günü (saat yok) | 2026-11-25 09:00 • Annenin doğum günü (saat yok) | ✅ |
+| 81 | akşam 8'de ilacımı iç | 2026-11-24 20:00 • İlacını iç | 2026-11-24 20:00 • İlacını iç | ✅ |
+| 82 | Yarın 8'de evden çıkarken anahtarlarımı unutma | 2026-11-25 08:00 • Evden çıkarken anahtarlarını unutma | 2026-11-25 08:00 • Evden çıkarken anahtarlarını unutma | ✅ |
+| 83 | Akşam 6'da ekmek almayı unutma | 2026-11-24 18:00 • Ekmek al | 2026-11-24 18:00 • Ekmek al | ✅ |
+| 84 | akşam 7'de annemlere uğra | 2026-11-24 19:00 • Annenlere uğra | 2026-11-24 19:00 • Annenlere uğra | ✅ |
+| 85 | yarın 9'da telefonumu şarj et | 2026-11-25 09:00 • Telefonunu şarj et | 2026-11-25 09:00 • Telefonunu şarj et | ✅ |
+| 86 | cumartesi arkadaşımın düğünü | 2026-11-28 09:00 • Arkadaşının düğünü (saat yok) | 2026-11-28 09:00 • Arkadaşının düğünü (saat yok) | ✅ |
+| 87 | akşam 8'de sinemaya git | 2026-11-24 20:00 • Sinemaya git | 2026-11-24 20:00 • Sinemaya git | ✅ |
+| 88 | yarın 10'da sunumu hazırla | 2026-11-25 10:00 • Sunumu hazırla | 2026-11-25 10:00 • Sunumu hazırla | ✅ |
+| 89 | akşam 9'da film izle | 2026-11-24 21:00 • Film izle | 2026-11-24 21:00 • Film izle | ✅ |
+| 90 | yarın 10'da programı kontrol et | 2026-11-25 10:00 • Programı kontrol et | 2026-11-25 10:00 • Programı kontrol et | ✅ |
+| 91 | yarın 10'da kalemimi al | 2026-11-25 10:00 • Kalemini al | 2026-11-25 10:00 • Kalemini al | ✅ |
+| 92 | yarın 11'de diş hekimine git | 2026-11-25 11:00 • Diş hekimine git | 2026-11-25 11:00 • Diş hekimine git | ✅ |
+| 93 | bu akşam 8'de alacağım ekmeği unutma | 2026-11-24 20:00 • Alacağın ekmeği unutma | 2026-11-24 20:00 • Alacağın ekmeği unutma | ✅ |
+| 94 | Saat 18:30'da Ahmet'le buluşacağız, bana haber ver, unutmayayım. | 2026-11-24 18:30 • Ahmet'le buluşacağız, bana haber ver | 2026-11-24 18:30 • Ahmet'le buluşacağız, bana haber ver | ✅ |
+| 95 | tr-TR küçük harf: "İSTANBUL'DA saat 10'da" | doğru | doğru | ✅ |
+| 96 | boş metin çökmez | doğru | doğru | ✅ |
+| 97 | null çökmez | doğru | doğru | ✅ |
+| 98 | güven alanı 0..1 | doğru | doğru | ✅ |
+| 99 | saniyeli "şimdi": "1 dakika sonra" tam dakikaya yuvarlanır (23:21:40 → 23:23:00) | doğru | doğru | ✅ |
+| 100 | saniyeli "şimdi": "20 dk sonra" (14:00:20 → 14:20:00) | doğru | doğru | ✅ |
+| 101 | yuvarlama asla geçmişe düşmez | doğru | doğru | ✅ |
+| 102 | sözcük türleri: "yarın sabah 9'da toplantı hatırlat" → zaman×3, görev, dolgu | doğru | doğru | ✅ |
+| 103 | sözcük türleri: rica yan cümlesi dolgu sayılır | doğru | doğru | ✅ |
+| 104 | kategori rengi: ilaç pembe, arama yeşil, bilinmeyen varsayılan | doğru | doğru | ✅ |
+| 105 | yarına atıldı işareti | doğru | doğru | ✅ |
 
-**82/82 geçti**
+**105/105 geçti**

@@ -33,11 +33,11 @@ const PERIODS = {
 const PERIOD_DEFAULT = { sabah: 9, oglen: 12, ogleden: 15, ikindi: 16, aksamustu: 18, aksam: 20, gece: 22 };
 
 // Dolgu sözcükleri: kenarlardan temizlenir
-const EDGE_FILLERS = new Set(['saat', 'bana', 'beni', 'bunu', 'şunu', 'lütfen', 'kur', 'de', 'da', 've', 'için', 'olarak', 'sonra', 'tarihinde', 'günü', 'gün', 'hatırlatıcı', 'hatırlatma', 'hatırlatması', 'alarm', 'kadar', 'ile', 'ki', 'mi', 'mı']);
+const EDGE_FILLERS = new Set(['saat', 'bana', 'beni', 'bunu', 'şunu', 'lütfen', 'kur', 'de', 'da', 've', 'için', 'olarak', 'sonra', 'tarihinde', 'hatırlatıcı', 'hatırlatma', 'hatırlatması', 'alarm', 'kadar', 'ile', 'ki', 'mi', 'mı']);
 // Tek başına bir yan cümle oluşturduklarında atılan rica sözcükleri ("bana bunu hatırlatır mısın")
 const META_WORDS = new Set(['bana', 'beni', 'bunu', 'şunu', 'onu', 'bunları', 'lütfen', 'unutma', 'unutmayayım', 'unutturma', 'sakın', 'tamam', 'olur', 'mu', 'mı', 'mi', 'mü', 'musun', 'mısın', 'misin', 'de', 'da', 'ki', 've', 'yap', 'kur', 'alarm', 'not', 'al', 'et', 'eder', 'edebilir', 'etsene', 'hadi', 'acaba', 'benim', 'için', 'teşekkürler', 'sağol', 'sağ', 'ol']);
 // Her yerden silinen sözcükler
-const ANY_FILLERS = new Set(['hatırlat', 'hatırlatır', 'hatırlatsana', 'hatırlatırmısın', 'hatırlatırsın', 'hatırlatıver', 'mısın', 'misin', 'lütfen', 'hatırlatıcı', 'hatırlatıcısı', 'hatırlatma', 'hatırlatmayı', 'unutma', 'unutturma', 'kur']);
+const ANY_FILLERS = new Set(['hatırlat', 'hatırlatır', 'hatırlatsana', 'hatırlatırmısın', 'hatırlatırsın', 'hatırlatıver', 'mısın', 'misin', 'lütfen', 'hatırlatıcı', 'hatırlatıcısı', 'hatırlatma', 'hatırlatmayı', 'unutturma', 'kur']);
 
 /* ── Yardımcılar ───────────────────────────────────────────── */
 function lower(s) { return String(s).toLocaleLowerCase(TR); }
@@ -412,10 +412,9 @@ export function parse(metin, simdi) {
   while (keep.length && edge(keep[keep.length - 1])) keep.pop();
   const kept = new Set(keep);
   const turler = T.map((t, i) => t.used ? 'zaman' : kept.has(i) ? 'görev' : 'dolgu');
-  // "…kulaklığımı alacağımı hatırlat" → "…kulaklığımı al": rica varsa son fiili emir kipine çevir
+  // Uygulama sana sesleniyormuş gibi yaz: "kulaklığımı alacağımı hatırlat" → "Kulaklığını al"
   const asked = T.some(t => !t.used && REQ.test(t.n));
-  const words = keep.map(i => T[i].raw);
-  if (asked && words.length >= 2) words[words.length - 1] = toImperative(words[words.length - 1]);
+  const words = toSecondPerson(keep.map(i => T[i].raw), asked);
   let gorev = words.join(' ').replace(/^[\s,.;:–—-]+|[\s,.;:!?–—-]+$/g, '').replace(/\s+([,;])/g, '$1').trim();
   if (gorev) gorev = gorev.charAt(0).toLocaleUpperCase(TR) + gorev.slice(1);
   if (!gorev) gorev = 'Hatırlatıcı';
@@ -453,25 +452,86 @@ export function parse(metin, simdi) {
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 
-/** "alacağımı" → "al", "aramamı" → "ara", "içmemi" → "iç", "gideceğimi" → "git". Tanımazsa sözcüğü olduğu gibi döndürür. */
+/* ── Görev metnini ikinci tekil kişiye çevirme ──
+   1) Son fiil emir kipine döner:  arayacağım → ara · içmem gerekiyor → iç · içmemi hatırlat → iç · almayı unutma → al
+   2) "Benim" ekleri "senin"e döner: annemi → anneni · kulaklığımı → kulaklığını · toplantım var → toplantın var */
 const NOMINAL = ['acağımızı', 'eceğimizi', 'acağımı', 'eceğimi', 'acağını', 'eceğini', 'masını', 'mesini', 'mamızı', 'memizi', 'mamı', 'memi', 'mayı', 'meyi'];
+const FUTURE1 = ['malıyım', 'meliyim', 'malıyız', 'meliyiz', 'acağım', 'eceğim', 'acağız', 'eceğiz'];
+const NEED1 = ['mamız', 'memiz', 'mam', 'mem'];
+const NEED_WORDS = new Set(['lazım', 'lazim', 'gerek', 'gerekiyor', 'gerekli', 'şart']);
 const SOFT = { gid: 'git', ed: 'et', did: 'dit', tad: 'tat', güd: 'güt' };
-function toImperative(word) {
-  const m = String(word).match(/^(.*?)([.,!?;:…]*)$/);
-  const body = m[1], tail = m[2];
+const PRONOUN2 = { benim: 'senin', beni: 'seni', bende: 'sende', benden: 'senden', benimle: 'seninle', bizim: 'sizin', bizi: 'sizi' };
+// Sonu zaten "-m" ile biten (iyelik olmayan) sözcükler: bunlara ve çekimlerine dokunulmaz
+const POSS_EXCEPT = ['akşam', 'program', 'tamam', 'tam', 'hem', 'kim', 'resim', 'isim', 'film', 'kalem', 'gram', 'kilogram', 'devam', 'bayram', 'adam', 'selam', 'sistem', 'problem', 'ödem', 'yem', 'dam', 'çim', 'kum', 'durum', 'kurum', 'tüm', 'hüküm', 'doğum', 'ölüm', 'bölüm', 'çözüm', 'giyim', 'yatırım', 'kullanım', 'hekim', 'bilim', 'ilim', 'albüm', 'forum', 'hamam', 'imam', 'haram', 'kadim', 'madem', 'gizem', 'ekim', 'kasım', 'katım', 'üzüm', 'yağım', 'islam', 'rom', 'ham', 'dem', 'gem', 'cem', 'kerem', 'erdem', 'kazım', 'hakim', 'muhtem', 'sınav', 'alım', 'satım', 'kayım', 'gerçek',
+  'sunum', 'seçim', 'ölçüm', 'yapım', 'bakım', 'tüketim', 'üretim', 'eğitim', 'iletişim', 'gelişim', 'değişim', 'yorum', 'anlatım', 'gemi', 'kimi', 'yemi', 'kimse', 'mum', 'ilham', 'mesaj', 'prim', 'rejim', 'dram', 'drum', 'pijama', 'sinema', 'tema', 'dilim', 'kesim', 'birim', 'görüşüm', 'algım', 'nizam', 'kalım', 'vazgeçim', 'teslim', 'muayene'];
+const FRONT = new Set(['e', 'i', 'ö', 'ü']), ROUND = new Set(['o', 'u', 'ö', 'ü']);
+/** Ek ünlüsü kendinden önceki ünlüyle uyumlu mu? (iyelik + hâl ekinde zorunlu: anneme ✓, sinema ✗) */
+function harmonic(prev, v) {
+  if (FRONT.has(prev) !== FRONT.has(v)) return false;
+  if ('ıiuü'.includes(v)) return ROUND.has(prev) === ROUND.has(v);
+  return true;
+}
+const CASE_ONLY = /^(ı|i|u|ü|a|e|da|de|ta|te|dan|den|tan|ten|la|le|ın|in|un|ün|ya|ye|yı|yi|yla|yle|ki|lar|ler|ları|leri|ları|lara|lere)?$/;
+const splitTail = w => { const m = String(w).match(/^(.*?)([.,!?;:…]*)$/); return [m[1], m[2]]; };
+
+/** Fiil ekini kaldırıp emir kökünü döndürür; ek yoksa null. */
+function verbStem(word, suffixes) {
+  const [body, tail] = splitTail(word);
   const low = lower(body);
-  for (const suf of NOMINAL) {
+  for (const suf of suffixes) {
     if (low.length > suf.length + 1 && low.endsWith(suf)) {
       let stem = body.slice(0, body.length - suf.length);
       const ls = lower(stem);
       if (SOFT[ls]) stem = SOFT[ls];
-      else if (/[aeıioöuü]y$/.test(ls)) stem = stem.slice(0, -1);     // yıkayacağımı → yıka
-      if (stem.length < 2) return word;
+      else if (/[aeıioöuü]y$/.test(ls)) stem = stem.slice(0, -1);     // arayacağım → ara, yıkayacağımı → yıka
+      if (stem.length < 2) return null;
       return stem + tail;
     }
   }
-  return word;
+  return null;
 }
+export function toImperative(word) { return verbStem(word, NOMINAL) || word; }
+
+/** Birinci tekil iyelik ekini ikinciye çevirir: annemi → anneni, kulaklığımı → kulaklığını. */
+function possessive2(word) {
+  if (/['’]/.test(word)) return word;                     // özel ad: Ahmet'le, Ayşe'ye
+  const [body, tail] = splitTail(word);
+  const low = lower(body);
+  if (PRONOUN2[low]) { const r = PRONOUN2[low]; return (body[0] !== low[0] ? r[0].toLocaleUpperCase(TR) + r.slice(1) : r) + tail; }
+  if (low.length < 3 || /\d/.test(low)) return word;
+  // İstisna sözcüğün kendisi ya da yalnızca hâl/çoğul eki almış biçimi (akşama, programı) değişmez; iyelikli biçimi (kalemimi) değişir
+  if (POSS_EXCEPT.some(r => low.startsWith(r) && CASE_ONLY.test(low.slice(r.length)))) return word;
+  const m = low.match(/^(.*[aeıioöuü])m(ı|i|u|ü|a|e|da|de|ta|te|dan|den|tan|ten|la|le|ın|in|un|ün|(?:ler|lar)(?:e|a|i|ı|in|ın|de|da|den|dan|le|la)?)?$/);
+  if (!m) return word;
+  const prevV = m[1][m[1].length - 1];
+  if (m[2]) { const sv = m[2].match(/[aeıioöuü]/)[0]; if (!harmonic(prevV, sv)) return word; }
+  const k = m[1].length;                                   // değişecek "m"nin yeri
+  return body.slice(0, k) + (body[k] === 'M' ? 'N' : 'n') + body.slice(k + 1) + tail;
+}
+
+export function toSecondPerson(words, asked) {
+  const w = words.slice();
+  if (!w.length) return w;
+  let verbAt = -1;
+  const n = () => w.length;
+  const normLast = () => norm(w[n() - 1]);
+  // a) "su içmem gerekiyor" → "su iç"
+  if (n() >= 2 && NEED_WORDS.has(normLast())) {
+    const v = verbStem(w[n() - 2], NEED1);
+    if (v) { w.pop(); w[n() - 1] = v; verbAt = n() - 1; }
+  }
+  // b) "annemi arayacağım" → "annemi ara"
+  if (verbAt < 0) { const v = verbStem(w[n() - 1], FUTURE1); if (v) { w[n() - 1] = v; verbAt = n() - 1; } }
+  // c) "ekmek almayı unutma" → "ekmek al"
+  if (verbAt < 0 && n() >= 2 && normLast() === 'unutma') {
+    const v = verbStem(w[n() - 2], NOMINAL);
+    if (v) { w.pop(); w[n() - 1] = v; verbAt = n() - 1; }
+  }
+  // d) "kulaklığımı alacağımı hatırlat" → "kulaklığımı al"
+  if (verbAt < 0 && asked) { const v = verbStem(w[n() - 1], NOMINAL); if (v) { w[n() - 1] = v; verbAt = n() - 1; } }
+  return w.map((x, i) => i === verbAt ? x : possessive2(x));
+}
+
 /** En yakın tam dakikaya yuvarlar; sonuç "şimdi"den önce ya da ona eşit olursa bir dakika ileri alır. */
 export function roundToMinute(ms, nowMs) {
   let r = Math.round(ms / 60000) * 60000;
