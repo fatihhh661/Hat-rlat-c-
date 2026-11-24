@@ -167,7 +167,7 @@ const uid = sha(S.endpoint);
   const ps = pushService(201);
   ({ res, data } = await call(env, post('/api/test', { uid }), deps(ps)));
   const testPayload = ps.calls[0] && decrypt(ps.calls[0].init.body, S);
-  ok('POST /api/test → push gönderildi, Node ile çözülen içerik doğru', res.status === 200 && ps.calls.length === 1 && testPayload.title === '⏰ Hatırlatıcı' && /Test bildirimi/.test(testPayload.body));
+  ok('POST /api/test → push gönderildi, Node ile çözülen içerik doğru', res.status === 200 && ps.calls.length === 1 && testPayload.title === '🎉 Test bildirimi' && /Her şey yolunda/.test(testPayload.body));
   ({ res, data } = await call(env, post('/api/test', { uid: sha('kayitsiz') })));
   ok('Test: abonelik yoksa 404', res.status === 404);
   ({ res, data } = await call(env, post('/api/test', { uid }), deps(pushService(502))));
@@ -182,7 +182,7 @@ async function freshEnv() {
   await call(e, req('/api/config'));
   const s = makeSubscriber();
   const u = sha(s.endpoint);
-  await call(e, post('/api/subscribe', { uid: u, sub: s.sub, silent: false }));
+  await call(e, post('/api/subscribe', { uid: u, sub: s.sub, silent: false, tz: 'Europe/Istanbul' }));
   return { e, s, u };
 }
 {
@@ -209,7 +209,10 @@ async function freshEnv() {
   const claims = JSON.parse(B(jp).toString());
   ok('Cron JWT: imza geçerli, aud = push origin, exp ≤ 12 saat', crypto.verify('sha256', Buffer.from(jh + '.' + jp), { key: pub, dsaEncoding: 'ieee-p1363' }, B(js)) && claims.aud === 'https://web.push.apple.com' && claims.exp - Math.floor(Date.now() / 1000) <= 43200 && claims.sub === ORIGIN);
   const payload = decrypt(c0.init.body, s);
-  ok('Cron: şifreli yük Node ile çözüldü (başlık + Türkçe görev)', payload.title === '⏰ Hatırlatıcı' && ['Çamaşırı çıkar', '10 sn sonra'].includes(payload.body) && payload.url.startsWith('/?r='));
+  const payloads = f.calls.map(c => decrypt(c.init.body, s));
+  const p1 = payloads.find(x => x.id === 'due-00001');
+  ok('Cron: şifreli yük Node ile çözüldü; başlıkta emoji + görev', !!p1 && p1.title === '🔔 Çamaşırı çıkar' && payload.url.startsWith('/?r='), JSON.stringify(p1));
+  ok('Bildirim gövdesi kullanıcının saat diliminde saat içeriyor (Europe/Istanbul)', p1 && p1.body === '13:59 · Ertelemek için dokun', p1 && p1.body);
   const puts = e.KV.puts;
   NOW += 1000; await cron(e, pushService(201));
   ok('Cron: gönderilecek yoksa KV\'ye yazmaz', e.KV.puts === puts);
@@ -284,6 +287,55 @@ for (const st of [500, 429, 503, 'throw']) {
   ok('Cron: bozuk pending verisinde çökmez', !threw);
   const r = await call(e, req('/api/config'));
   ok('Bozuk KV verisinde API çalışmaya devam eder', r.res.status === 200);
+}
+
+
+/* ═══ Bildirim içeriği: emoji + ertelendi ═══ */
+{
+  const { e, s, u } = await freshEnv();
+  setPending(e, [{ uid: u, id: 'emo-00001', text: 'Annemi ara', at: NOW - 1, tries: 0, snoozed: true }]);
+  const f = pushService(201);
+  await cron(e, f);
+  const pl = decrypt(f.calls[0].init.body, s);
+  ok('Ertelenmiş hatırlatıcı: "📞 Annemi ara" / "Ertelendi · 13:59 · …"', pl.title === '📞 Annemi ara' && pl.body.startsWith('Ertelendi · 13:59'), JSON.stringify(pl));
+  const r = await call(e, post('/api/reminders', { uid: u, id: 'snz-00001', text: 'x', at: NOW + 60000, snoozed: true }));
+  ok('POST /api/reminders snoozed alanını saklıyor', r.res.status === 200 && e.KV.json('pending').find(x => x.id === 'snz-00001').snoozed === true);
+  const bad = await call(e, post('/api/subscribe', { uid: u, sub: s.sub, tz: 'Mars/Olympus' }));
+  ok('Geçersiz saat dilimi yok sayılıyor (abonelik yine kabul)', bad.res.status === 200 && e.KV.json('sub:' + u).tz === null);
+}
+
+/* ═══ Ses → yazı (Workers AI) ═══ */
+{
+  const wav = (n = 8000) => { const b = Buffer.alloc(44 + n); b.write('RIFF', 0); b.write('WAVE', 8); return b; };
+  const postAudio = (body, ct = 'audio/wav') => req('/api/transcribe', { method: 'POST', headers: { 'content-type': ct }, body });
+  const calls = [];
+  const aiOk = { async run(model, input) { calls.push({ model, input }); return { text: "  Akşam 8'de annemi ara.  " }; } };
+  const e1 = { KV: mockKV(), AI: aiOk };
+  let { res, data } = await call(e1, req('/api/config'));
+  ok('/api/config ai:true (AI bağlaması varsa)', data.ai === true);
+  ({ data } = await call({ KV: mockKV() }, req('/api/config')));
+  ok('/api/config ai:false (AI bağlaması yoksa)', data.ai === false);
+  ({ res, data } = await call(e1, postAudio(wav())));
+  ok('POST /api/transcribe → Whisper turbo, Türkçe, temizlenmiş metin', res.status === 200 && data.text === "Akşam 8'de annemi ara." && calls[0].model === '@cf/openai/whisper-large-v3-turbo' && calls[0].input.language === 'tr' && typeof calls[0].input.audio === 'string');
+  ok('Ses base64 olarak birebir iletiliyor', Buffer.from(calls[0].input.audio, 'base64').equals(wav()));
+  const calls2 = [];
+  const aiFallback = { async run(model, input) { calls2.push(model); if (model.includes('turbo')) throw new Error('model yok'); return { text: 'yarın 10da kurs' }; } };
+  ({ res, data } = await call({ KV: mockKV(), AI: aiFallback }, postAudio(wav())));
+  ok('Turbo hata verirse klasik Whisper modeline düşüyor', res.status === 200 && data.text === 'yarın 10da kurs' && calls2.join() === '@cf/openai/whisper-large-v3-turbo,@cf/openai/whisper');
+  ({ res, data } = await call({ KV: mockKV(), AI: { async run() { throw new Error('kota'); } } }, postAudio(wav())));
+  ok('İki model de hata verirse 502 stt_failed', res.status === 502 && data.error === 'stt_failed');
+  ({ res, data } = await call({ KV: mockKV(), AI: { async run() { return { text: 'Altyazı M.K.' }; } } }, postAudio(wav())));
+  ok('Whisper\'ın sessizlik uydurmaları ("Altyazı M.K.") boş metne çevriliyor', res.status === 200 && data.text === '');
+  ({ res, data } = await call({ KV: mockKV() }, postAudio(wav())));
+  ok('AI bağlaması yoksa 503 ai_missing ve açık Türkçe mesaj', res.status === 503 && data.error === 'ai_missing' && /AI/.test(data.message));
+  ({ res } = await call(e1, postAudio(wav(), 'application/json')));
+  ok('Ses dışı içerik → 415', res.status === 415);
+  ({ res } = await call(e1, postAudio(Buffer.alloc(100))));
+  ok('Çok kısa kayıt → 400', res.status === 400);
+  ({ res } = await call(e1, postAudio(Buffer.alloc(3 * 1024 * 1024))));
+  ok('2,5 MB üstü kayıt → 413', res.status === 413);
+  ({ res } = await call(e1, req('/api/transcribe')));
+  ok('GET /api/transcribe → 405', res.status === 405);
 }
 
 console.log(`\nWorker: ${pass}/${pass + fail} geçti`);

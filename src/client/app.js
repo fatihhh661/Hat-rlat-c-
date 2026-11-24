@@ -54,24 +54,6 @@ function leftShort(ms) {
   return m + 'd';
 }
 
-/* Göreve göre otomatik emoji */
-const EMOJI_RULES = [
-  ['💊', /(^|\s)(ilaç|ilac|hap|vitamin|şurup|iğne)/],
-  ['🩺', /(^|\s)(doktor|dişçi|diş|hastane|muayene|tahlil|eczane|klinik)/],
-  ['✈️', /(^|\s)(uçak|uçuş|havalimanı|havaalanı|uçağ|check-in)/],
-  ['📞', /(^|\s)(ara$|ara\s|aran|aray|arama|telefon|tel\s|görüntülü)/],
-  ['👥', /(^|\s)(toplantı|görüşme|meeting|sunum|buluş|zoom|teams|mülakat)/],
-  ['🏋️', /(^|\s)(spor|koşu|yoga|pilates|antrenman|salon|yürüyüş|gym|fitness|yüzme)/],
-  ['🍽️', /(^|\s)(yemek|kahvaltı|akşam yemeği|öğle yemeği|restoran|pişir|fırın|çay|kahve)/],
-  ['💧', /(^|\s)(su\s|su$|sula|bardak su)/],
-  ['🛒', /(^|\s)(alışveriş|market|süt|ekmek|manav|bakkal|sipariş|kargo)/]
-];
-function emojiFor(text) {
-  const t = lowerTR(text) + ' ';
-  for (const [e, re] of EMOJI_RULES) if (re.test(t)) return e;
-  return '🔔';
-}
-
 /* Toast */
 function toast(msg, type) {
   const box = $('toasts');
@@ -486,69 +468,131 @@ if (window.visualViewport) {
   vv.addEventListener('resize', onVV); vv.addEventListener('scroll', onVV);
 }
 
-/* ═══ 7. Mikrofon / konuşma ═══ */
+/* ═══ 7. Mikrofon / konuşma ═══
+   İki yol, aynı arayüz:
+   • Kayıt + Whisper (iPhone): sesi kendimiz kaydeder, 16 kHz WAV'a çevirip /api/transcribe'a göndeririz.
+     iOS ana ekran uygulamalarında tarayıcının konuşma tanıması çalışmadığı için asıl yol budur.
+   • Tarayıcı tanıması (diğerleri): webkitSpeechRecognition, konuşurken yazı canlı akar. */
 const orbBtn = $('orb'), listenEl = $('listen'), bigWrap = $('bigWrap'), bigOrb = $('bigOrb');
-let L = null; // aktif dinleme oturumu
+let L = null;               // aktif dinleme oturumu
+let serverAI = null;        // /api/config: sunucuda Workers AI var mı (null = henüz bilinmiyor)
+const hasGUM = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 
 function micFallback(msg) {
   input.focus();
   showHint(msg || 'Klavyedeki 🎤 simgesine dokunarak konuşabilirsin.', msg ? 4500 : 3000);
 }
-// iOS ana ekran uygulamalarında konuşma tanıma bazen hiç çalışmaz. Bir kez çalışmadığı görülürse
-// 3 gün boyunca küre doğrudan klavye dikte yoluna yönlendirir (dokunuş anında odaklandığı için klavye açılır).
+// Tarayıcı tanıması bir kez hiç çalışmadıysa 3 gün boyunca o yolu denemeyiz
 const K_MIC = 'anımsa.micBroken';
 function micBroken() { const t = readLS(K_MIC, 0); return Number.isFinite(t) && Date.now() - t < 3 * 86400000; }
 function markMicBroken() { writeLS(K_MIC, Date.now()); }
+const AI_MISSING_MSG = 'Sesli tanıma kurulmamış: Cloudflare\'de Worker\'a "AI" adlı Workers AI bağlaması ekle. Şimdilik klavyedeki 🎤 ile konuşabilirsin.';
+
+function newSession(mode) {
+  return { mode, text: '', ended: false, stopped: false, stream: null, ac: null, analyser: null, proc: null, chunks: [], rate: 0,
+    raf: 0, silence: 0, lastRipple: 0, level: 0, failed: false, cancelled: false, alive: false, boost: 0, watchdog: 0, doneTimer: 0,
+    speechSeen: false, quietSince: 0, t0: performance.now() };
+}
+
 orbBtn.addEventListener('click', () => {
   if (L) return;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR || micBroken()) { micFallback(); return; }
+  // iPhone'da (ya da tarayıcı tanıması yoksa) kayıt + Whisper; sunucuda AI olmadığı biliniyorsa denemeyiz
+  const preferRecord = hasGUM && serverAI !== false && (isIOS || !SR || micBroken());
+  if (preferRecord) { startRecord(); return; }
+  if (!SR || micBroken()) { micFallback(serverAI === false && isIOS ? AI_MISSING_MSG : undefined); return; }
+  startNative(SR);
+});
+
+/* ── Yol 1: Kayıt + Whisper ── */
+function startRecord() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  let ac;
+  try { ac = new AC(); } catch (e) { micFallback(); return; }   // dokunuş anında oluştur: iOS'ta askıya alınmasın
+  const S = L = newSession('record');
+  S.ac = ac; S.rate = ac.sampleRate;
+  openListen('Dinliyorum… bitince sus ya da ✓\'ye dokun');
+  startMeter(S);
+  navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } })
+    .then(stream => {
+      if (L !== S || S.stopped) { stream.getTracks().forEach(t => t.stop()); return; }
+      S.stream = stream;
+      if (ac.state === 'suspended') ac.resume().catch(() => {});
+      const src = ac.createMediaStreamSource(stream);
+      S.analyser = ac.createAnalyser(); S.analyser.fftSize = 1024; S.analyser.smoothingTimeConstant = 0.6;
+      src.connect(S.analyser);
+      // Ham ses örneklerini topla (ScriptProcessor: iOS dahil her yerde çalışır; çıkışı sessizdir)
+      const proc = ac.createScriptProcessor(4096, 1, 1);
+      proc.onaudioprocess = e => { if (L === S && !S.stopped) S.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+      src.connect(proc); proc.connect(ac.destination);
+      S.proc = proc; S.alive = true; S.t0 = performance.now();
+    })
+    .catch(() => { if (L === S) { S.failed = 'perm'; finishListening(); } });
+}
+function stopRecord(S) { S.stopped = true; finishListening(); }
+
+/** Float32 örnekleri 16 kHz mono 16-bit WAV'a çevirir (Whisper'ın beklediği biçim). */
+function toWav16k(chunks, rate) {
+  let n = 0; for (const c of chunks) n += c.length;
+  const all = new Float32Array(n); let o = 0; for (const c of chunks) { all.set(c, o); o += c.length; }
+  const ratio = rate / 16000, outLen = Math.floor(all.length / ratio);
+  const pcm = new Int16Array(outLen);
+  for (let i = 0; i < outLen; i++) {
+    const a = Math.floor(i * ratio), b = Math.min(all.length, Math.floor((i + 1) * ratio));
+    let sum = 0; for (let k = a; k < b; k++) sum += all[k];
+    const v = clamp(sum / Math.max(1, b - a), -1, 1);
+    pcm[i] = v < 0 ? v * 0x8000 : v * 0x7fff;
+  }
+  const buf = new ArrayBuffer(44 + pcm.length * 2), dv = new DataView(buf);
+  const w = (p, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(p + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); dv.setUint32(4, 36 + pcm.length * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true); dv.setUint32(24, 16000, true);
+  dv.setUint32(28, 32000, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true); w(36, 'data'); dv.setUint32(40, pcm.length * 2, true);
+  new Int16Array(buf, 44).set(pcm);
+  return { blob: new Blob([buf], { type: 'audio/wav' }), seconds: outLen / 16000 };
+}
+
+/* ── Yol 2: Tarayıcı tanıması ── */
+function startNative(SR) {
   let rec;
   try { rec = new SR(); } catch (e) { micFallback(); return; }
   rec.lang = 'tr-TR'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
-  L = { rec, text: '', ended: false, stream: null, ac: null, analyser: null, raf: 0, silence: 0, lastRipple: 0, level: 0, fake: false, failed: false, cancelled: false, alive: false, boost: 0, watchdog: 0, doneTimer: 0 };
-  const S0 = L;
-  const alive = () => { if (L === S0) S0.alive = true; };
+  const S = L = newSession('native'); S.rec = rec;
+  const alive = () => { if (L === S) S.alive = true; };
   rec.onstart = alive; rec.onaudiostart = alive; rec.onsoundstart = alive; rec.onspeechstart = alive;
-  // Bekçi: 6 sn içinde ne ses ne sonuç geldiyse tanıma çalışmıyor demektir
-  S0.watchdog = setTimeout(() => {
-    if (L === S0 && !S0.text && !S0.alive) { S0.failed = 'dead'; try { rec.abort(); } catch (e) { /* yok */ } finishListening(); }
-  }, 6000);
+  S.watchdog = setTimeout(() => { if (L === S && !S.text && !S.alive) { S.failed = 'dead'; try { rec.abort(); } catch (e) { /* yok */ } finishListening(); } }, 6000);
   rec.onresult = e => {
-    if (!L) return;
+    if (L !== S) return;
     let s = '';
     for (let i = 0; i < e.results.length; i++) s += e.results[i][0].transcript;
-    L.text = s.trim(); L.alive = true; L.boost = 1;
-    $('listenText').textContent = L.text;
-    input.value = L.text; ph.hidden = !!L.text; updatePreview();
+    S.text = s.trim(); S.alive = true; S.boost = 1;
+    $('listenText').textContent = S.text;
+    input.value = S.text; ph.hidden = !!S.text; updatePreview();
     resetSilence();
   };
   rec.onerror = e => {
-    if (!L) return;
+    if (L !== S) return;
     const code = e && e.error;
     if (code === 'aborted') return;
-    if (code === 'no-speech') { L.failed = 'nospeech'; return; }
-    L.failed = 'error';
+    S.failed = code === 'no-speech' ? 'nospeech' : 'error';
   };
   rec.onend = () => finishListening();
   try { rec.start(); } catch (e) { L = null; micFallback(); return; }
-  openListen();
-  // iOS'ta mikrofon tek bir işe verilir: ses seviyesi için ayrıca mikrofon açmak konuşma tanımayı susturabilir.
-  // Bu yüzden iOS'ta dalga/küre, gelen sözcüklere göre canlanan yumuşak bir nabızla çalışır.
-  startMeter(isIOS);
+  openListen('Dinliyorum…');
+  startMeter(S);
   resetSilence();
-});
-
+}
 function resetSilence() {
-  if (!L) return;
-  clearTimeout(L.silence);
-  L.silence = setTimeout(() => { if (L) try { L.rec.stop(); } catch (e) { /* yok */ } }, 8000);
+  const S = L; if (!S || S.mode !== 'native') return;
+  clearTimeout(S.silence);
+  S.silence = setTimeout(() => { if (L === S) try { S.rec.stop(); } catch (e) { /* yok */ } }, 8000);
 }
 
-function openListen() {
+/* ── Ortak sahne ── */
+function openListen(status) {
   listenEl.setAttribute('aria-hidden', 'false');
   $('listenText').textContent = '';
-  $('listenStatus').textContent = 'Dinliyorum…';
+  $('listenStatus').textContent = status;
   listenEl.classList.remove('processing', 'flow', 'error');
   setInert(true);
   // FLIP: küçük küreden büyüğe
@@ -571,8 +615,8 @@ function closeListen() {
   if (!sheetState.open && !alarmState.open) setInert(false);
 }
 
-async function startMeter(noMic) {
-  const S = L;
+/** Küre, halkalar ve dalga formu. Ses analizörü varsa gerçek seviye, yoksa sözcüklerle güçlenen yumuşak nabız. */
+function startMeter(S) {
   const wave = $('wave'), wctx = wave.getContext('2d');
   const dpr = Math.min(devicePixelRatio || 1, 2);
   const W = wave.clientWidth || 300, H = wave.clientHeight || 64;
@@ -580,48 +624,43 @@ async function startMeter(noMic) {
   const grad = wctx.createLinearGradient(0, 0, W, 0);
   grad.addColorStop(0, 'rgba(124,92,255,0)'); grad.addColorStop(0.2, '#7C5CFF'); grad.addColorStop(0.8, '#19D3FF'); grad.addColorStop(1, 'rgba(25,211,255,0)');
   let buf = null;
-  try {
-    if (noMic || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('yok');
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-    if (L !== S) { stream.getTracks().forEach(t => t.stop()); return; }
-    S.stream = stream;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    S.ac = new AC();
-    const src = S.ac.createMediaStreamSource(stream);
-    S.analyser = S.ac.createAnalyser(); S.analyser.fftSize = 1024; S.analyser.smoothingTimeConstant = 0.6;
-    src.connect(S.analyser);
-    buf = new Uint8Array(S.analyser.fftSize);
-  } catch (e) { S.fake = true; }  // izin yoksa yumuşak sahte nabız
   const t0 = performance.now();
   const loop = t => {
     if (L !== S) return;
     S.raf = requestAnimationFrame(loop);
     let target, pts = [];
     if (S.analyser) {
+      if (!buf) buf = new Uint8Array(S.analyser.fftSize);
       S.analyser.getByteTimeDomainData(buf);
       let sum = 0;
       for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
       target = clamp(Math.sqrt(sum / buf.length) * 4.2, 0, 1);
       const step = Math.floor(buf.length / 64);
       for (let i = 0; i < 64; i++) pts.push((buf[i * step] - 128) / 128);
-      if (target > 0.12) resetSilence();
+      if (S.mode === 'record' && !S.stopped) {
+        // Otomatik durdurma: konuşma başladıktan sonra 1,6 sn sessizlik; hiç konuşulmazsa 8 sn; en fazla 30 sn
+        const el = t - S.t0;
+        if (target > 0.14) { S.speechSeen = true; S.quietSince = 0; }
+        else if (S.speechSeen && target < 0.08) { S.quietSince = S.quietSince || t; }
+        if ((S.speechSeen && S.quietSince && t - S.quietSince > 1600) || (!S.speechSeen && el > 8000) || el > 30000) { stopRecord(S); return; }
+        const secs = Math.floor(el / 1000);
+        if (S.speechSeen && secs !== S.lastSecs) { S.lastSecs = secs; $('listenStatus').textContent = 'Dinliyorum… 0:' + String(secs).padStart(2, '0'); }
+      }
     } else {
       const k = (t - t0) / 1000;
-      S.boost *= 0.96;   // sözcük geldikçe nabız güçlenir
+      S.boost *= 0.96;
       target = 0.24 + 0.14 * Math.sin(k * 2.4) + 0.06 * Math.sin(k * 6.1) + 0.45 * S.boost * (0.6 + 0.4 * Math.sin(k * 11));
       for (let i = 0; i < 64; i++) pts.push(Math.sin(i / 5 + k * 5) * 0.18 * (0.6 + 0.4 * Math.sin(k * 2.4)) * Math.sin(Math.PI * i / 63));
     }
     S.level += (target - S.level) * 0.22;
     if (!reduceMQ.matches) bigOrb.style.setProperty('--lvl', S.level.toFixed(3));
-    // Yayılan halkalar: ses yükseldikçe sıklaşır (en fazla 3)
-    const gap = 1100 - S.level * 800;
+    const gap = 1100 - S.level * 800;   // ses yükseldikçe halkalar sıklaşır (en fazla 3)
     if (!reduceMQ.matches && t - S.lastRipple > gap && bigWrap.querySelectorAll('.ripple').length < 3) {
       S.lastRipple = t;
       const r = document.createElement('span'); r.className = 'ripple';
       r.addEventListener('animationend', () => r.remove(), { once: true });
       bigWrap.insertBefore(r, bigOrb);
     }
-    // Dalga formu
     wctx.clearRect(0, 0, W, H);
     wctx.lineWidth = 2.2; wctx.strokeStyle = grad; wctx.lineCap = 'round';
     wctx.beginPath();
@@ -635,61 +674,93 @@ async function startMeter(noMic) {
   S.raf = requestAnimationFrame(loop);
 }
 function stopMeter(S) {
-  if (!S) return;
   cancelAnimationFrame(S.raf);
-  clearTimeout(S.silence);
+  clearTimeout(S.silence); clearTimeout(S.watchdog); clearTimeout(S.doneTimer);
+  try { if (S.proc) { S.proc.onaudioprocess = null; S.proc.disconnect(); } } catch (e) { /* yok */ }
   try { if (S.stream) S.stream.getTracks().forEach(t => t.stop()); } catch (e) { /* yok */ }
   try { if (S.ac && S.ac.state !== 'closed') S.ac.close(); } catch (e) { /* yok */ }
   bigWrap.querySelectorAll('.ripple').forEach(r => r.remove());
 }
-
-async function finishListening() {
-  const S = L; if (!S || S.ended) return;
-  S.ended = true;
-  clearTimeout(S.watchdog); clearTimeout(S.doneTimer);
-  stopMeter(S);
-  S.rec.onresult = S.rec.onerror = S.rec.onend = S.rec.onstart = S.rec.onaudiostart = S.rec.onsoundstart = S.rec.onspeechstart = null;
-  L = null;
-  const text = S.text;
-  if (S.cancelled) { closeListen(); return; }
-  if (!text) {
-    if (S.failed === 'dead' || (S.failed === 'error' && !S.alive) || (!S.alive && !S.failed)) {
-      // Konuşma tanıma bu ortamda çalışmıyor: bir daha denemeden klavye diktesine yönlendir
-      markMicBroken();
-      listenEl.classList.add('error'); $('listenStatus').textContent = 'Sesli tanıma burada çalışmıyor';
-      haptic([20, 60, 20]);
-      await sleep(900); closeListen();
-      micFallback('iPhone bu ekranda sesli tanımaya izin vermiyor. Yazı kutusuna dokunup klavyedeki 🎤 ile konuş.');
-      return;
-    }
-    if (S.failed === 'error') {
-      listenEl.classList.add('error'); $('listenStatus').textContent = 'Mikrofon kullanılamadı';
-      haptic([20, 60, 20]);
-      await sleep(650); closeListen(); micFallback();
-    } else {
-      $('listenStatus').textContent = 'Bir şey duyamadım';
-      await sleep(700); closeListen(); showHint('Bir şey duyamadım. Tekrar dene ya da yaz.', 3000);
-    }
-    return;
-  }
-  // İşleniyor → onay kartına akış
-  $('listenStatus').textContent = 'Anlıyorum…';
-  listenEl.classList.add('processing');
-  await sleep(reduceMQ.matches ? 150 : 420);
+async function failListen(status, hint) {
+  listenEl.classList.add('error'); $('listenStatus').textContent = status;
+  haptic([20, 60, 20]);
+  await sleep(900); closeListen();
+  if (hint) micFallback(hint);
+}
+async function toSheet(text) {
+  $('listenText').textContent = text;
   listenEl.classList.add('flow');
   openSheet(draftFrom(text));
   await sleep(300);
   closeListen();
 }
-// ✓: tanımayı durdur; tanıma "bitti" yanıtı vermezse 0,9 sn sonra yine de bitir (takılı kalmasın)
+
+async function finishListening() {
+  const S = L; if (!S || S.ended) return;
+  S.ended = true; S.stopped = true;
+  stopMeter(S);
+  if (S.rec) S.rec.onresult = S.rec.onerror = S.rec.onend = S.rec.onstart = S.rec.onaudiostart = S.rec.onsoundstart = S.rec.onspeechstart = null;
+  L = null;
+  if (S.cancelled) { closeListen(); return; }
+
+  if (S.mode === 'record') {
+    if (S.failed === 'perm') return failListen('Mikrofon izni yok', 'Mikrofon izni gerekli. Tekrar dokunup izin isteğinde “İzin Ver”i seç; olmazsa klavyedeki 🎤 ile konuş.');
+    const wav = S.chunks.length ? toWav16k(S.chunks, S.rate) : null;
+    if (!wav || wav.seconds < 0.5 || !S.speechSeen) {
+      $('listenStatus').textContent = 'Bir şey duyamadım';
+      await sleep(700); closeListen(); showHint('Bir şey duyamadım. Tekrar dene ya da yaz.', 3000); return;
+    }
+    $('listenStatus').textContent = 'Anlıyorum…';
+    listenEl.classList.add('processing');
+    let res, data = {};
+    try {
+      res = await fetch('/api/transcribe', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav.blob });
+      try { data = await res.json(); } catch (e) { /* yok */ }
+    } catch (e) { listenEl.classList.remove('processing'); return failListen('İnternet yok', 'Sesli tanıma için internet gerekli. Şimdilik yazarak ekleyebilirsin.'); }
+    listenEl.classList.remove('processing');
+    if (res.status === 503 && data.error === 'ai_missing') { serverAI = false; return failListen('Sesli tanıma kurulmamış', AI_MISSING_MSG); }
+    if (!res.ok) return failListen('Anlayamadım', 'Ses yazıya çevrilemedi. Tekrar dene ya da klavyedeki 🎤 ile konuş.');
+    const text = String(data.text || '').trim();
+    if (!text) { $('listenStatus').textContent = 'Bir şey duyamadım'; await sleep(700); closeListen(); showHint('Söylediğini anlayamadım. Biraz daha yakından tekrar dene.', 3200); return; }
+    input.value = text; ph.hidden = true; updatePreview();
+    listenEl.classList.add('processing');
+    await sleep(reduceMQ.matches ? 100 : 260);
+    return toSheet(text);
+  }
+
+  // Tarayıcı tanıması
+  const text = S.text;
+  if (!text) {
+    if (S.failed === 'dead' || (S.failed === 'error' && !S.alive) || (!S.alive && !S.failed)) {
+      markMicBroken();
+      // Bu tarayıcıda tanıma çalışmıyor: sunucuda AI varsa bir dahaki sefere kayıt yolu kullanılır
+      return failListen('Sesli tanıma burada çalışmıyor', serverAI && hasGUM ? 'Tekrar küreye dokun; bu kez sesini kaydedip yazıya çevireceğim.' : 'Bu ekranda sesli tanıma çalışmıyor. Yazı kutusuna dokunup klavyedeki 🎤 ile konuş.');
+    }
+    if (S.failed === 'error') return failListen('Mikrofon kullanılamadı', 'Klavyedeki 🎤 simgesine dokunarak konuşabilirsin.');
+    $('listenStatus').textContent = 'Bir şey duyamadım';
+    await sleep(700); closeListen(); showHint('Bir şey duyamadım. Tekrar dene ya da yaz.', 3000);
+    return;
+  }
+  $('listenStatus').textContent = 'Anlıyorum…';
+  listenEl.classList.add('processing');
+  await sleep(reduceMQ.matches ? 150 : 420);
+  return toSheet(text);
+}
+// ✓: kaydı/tanımayı bitir. Tarayıcı tanıması "bitti" yanıtı vermezse 0,9 sn sonra yine de bitir (takılmasın)
 $('listenDone').addEventListener('click', () => {
   const S = L; if (!S) return;
   haptic(8);
+  if (S.mode === 'record') { if (!S.speechSeen && S.chunks.length) S.speechSeen = true; stopRecord(S); return; }
   try { S.rec.stop(); } catch (e) { /* yok */ }
   clearTimeout(S.doneTimer);
   S.doneTimer = setTimeout(() => { if (L === S) finishListening(); }, 900);
 });
-$('listenCancel').addEventListener('click', () => { if (L) { L.cancelled = true; try { L.rec.abort(); } catch (e) { /* yok */ } finishListening(); input.value = ''; updatePreview(); } });
+$('listenCancel').addEventListener('click', () => {
+  const S = L; if (!S) return;
+  S.cancelled = true;
+  if (S.rec) { try { S.rec.abort(); } catch (e) { /* yok */ } }
+  finishListening(); input.value = ''; updatePreview();
+});
 bigWrap.addEventListener('click', () => { if (L) $('listenDone').click(); });
 
 /* ═══ 8. Onay kartı ═══ */
@@ -965,11 +1036,25 @@ function openAlarm(r) {
   haptic([30, 80, 30, 80, 30]);
   setTimeout(() => { try { alarmEl.focus({ preventScroll: true }); } catch (e) { /* yok */ } }, 60);
 }
+/** Ana ekran simgesindeki sayı: bakılmamış (Tamam/Ertele denmemiş) zamanı gelmiş hatırlatıcılar */
+async function refreshBadge(closeId) {
+  const now = Date.now();
+  const n = state.reminders.filter(x => !x.done && x.at <= now && now - x.at < 12 * 3600000).length;
+  try { if (n && navigator.setAppBadge) await navigator.setAppBadge(n); else if (navigator.clearAppBadge) await navigator.clearAppBadge(); } catch (e) { /* desteklenmiyor */ }
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg && reg.getNotifications) {
+      const list = await reg.getNotifications();
+      list.forEach(nt => { if (!n || (closeId && nt.tag === 'animsa-' + closeId) || nt.tag === 'animsa-test') nt.close(); });
+    }
+  } catch (e) { /* yok */ }
+}
 function closeAlarm() {
   alarmState.open = false;
   alarmEl.classList.add('closing'); alarmEl.classList.remove('open'); alarmEl.style.transform = '';
   setTimeout(() => alarmEl.classList.remove('closing'), 320);
   if (!sheetState.open) { scrim.classList.remove('open'); if (!panelOpen) setInert(false); }
+  refreshBadge(alarmState.id);
   setTimeout(() => checkDue(), 600);
 }
 function snooze(ms) {
@@ -1223,6 +1308,7 @@ async function ensureSubscription(force) {
   if (!pushSupported() || Notification.permission !== 'granted') return false;
   const reg = await navigator.serviceWorker.ready;
   const cfg = await api('/api/config');
+  serverAI = !!cfg.ai;
   let sub = await reg.pushManager.getSubscription();
   if (sub && !sameKey(sub.options && sub.options.applicationServerKey, cfg.publicKey)) { try { await sub.unsubscribe(); } catch (e) { /* yok */ } sub = null; }
   if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(cfg.publicKey) });
@@ -1230,16 +1316,17 @@ async function ensureSubscription(force) {
   const uid = await sha256Hex(json.endpoint);
   const changed = uid !== state.uid;
   if (force || changed || Date.now() - state.settings.lastSubAt > 86400000) {
-    await api('/api/subscribe', { uid, sub: json, oldUid: changed && state.uid ? state.uid : undefined, silent: state.settings.silent });
+    await api('/api/subscribe', { uid, sub: json, oldUid: changed && state.uid ? state.uid : undefined, silent: state.settings.silent, tz: userTz() });
     state.uid = uid; state.settings.lastSubAt = Date.now(); save();
     if (changed) state.reminders.forEach(r => { r.synced = false; });
   }
   return true;
 }
+function userTz() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined; } catch (e) { return undefined; } }
 async function syncOne(r) {
   if (!state.uid) return;
   try {
-    await api('/api/reminders', { uid: state.uid, id: r.id, text: r.text, at: r.at });
+    await api('/api/reminders', { uid: state.uid, id: r.id, text: r.text, at: r.at, snoozed: !!r.snoozedFrom });
     r.synced = true; save(); render();
   } catch (e) {
     if (e.status === 404) { state.settings.lastSubAt = 0; ensureSubscription(true).then(() => fullSync(true)).catch(() => {}); }
@@ -1260,7 +1347,7 @@ async function fullSync(force) {
   if (!dirty && !force) return;
   syncing = true;
   try {
-    const list = state.reminders.filter(r => r.at > now).map(r => ({ id: r.id, text: r.text, at: r.at }));
+    const list = state.reminders.filter(r => r.at > now).map(r => ({ id: r.id, text: r.text, at: r.at, snoozed: !!r.snoozedFrom }));
     await api('/api/sync', { uid: state.uid, reminders: list });
     state.reminders.forEach(r => { if (r.at > now) r.synced = true; });
     state.settings.pendingDeletes = [];
@@ -1309,7 +1396,7 @@ function init() {
   setInterval(tick, 1000);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { typer.stop(); return; }
-    typer.start(); render(); checkDue();
+    typer.start(); render(); checkDue(); refreshBadge();
     ensureSubscription(false).then(() => fullSync(true)).catch(() => {});
   });
 
@@ -1331,9 +1418,11 @@ function init() {
   else setTimeout(() => checkDue(rid), 400);
 
   ensureSubscription(false).then(() => fullSync(true)).catch(() => {});
+  api('/api/config').then(c => { serverAI = !!c.ai; }).catch(() => {});
+  refreshBadge();
 }
 
 init();
 // Test kancası (yalnızca otomatik testler için)
-window.__animsa = { state, render, openSheet, draftFrom, openAlarm, setTab, toast, openPanel, finishOnboarding, showOnboarding, confetti };
+window.__animsa = { get mic() { return L ? { mode: L.mode, analyser: !!L.analyser, chunks: L.chunks.length, rate: L.rate } : null; }, state, render, openSheet, draftFrom, openAlarm, setTab, toast, openPanel, finishOnboarding, showOnboarding, confetti };
 })();

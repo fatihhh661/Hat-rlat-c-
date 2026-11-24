@@ -5,10 +5,12 @@
    • Cron (her dakika): zamanı gelen hatırlatıcılar için Web Push gönderir
    KV anahtarları:
      vapid        → { publicKey, privateJwk, subject }
-     sub:<uid>    → { sub, silent, updatedAt }
-     pending      → [{ uid, id, text, at, tries }]  (cron yalnızca bunu okur)
+     sub:<uid>    → { sub, silent, tz, updatedAt }
+     pending      → [{ uid, id, text, at, tries, snoozed }]  (cron yalnızca bunu okur)
+   İsteğe bağlı "AI" bağlaması (Workers AI): /api/transcribe ile sesi Whisper'la yazıya çevirir.
    ════════════════════════════════════════════════════════════════ */
 import { generateVapidKeys, sendPush, cleanSubscription, sha256Hex } from './push.js';
+import { emojiFor } from './parser.js';
 
 const MAX_PENDING = 1000;          // KV değerini makul boyutta tut
 const MAX_PER_UID = 300;
@@ -102,8 +104,42 @@ function vapidFor(env, v) {
   return { publicKey: v.publicKey, privateJwk: v.privateJwk, subject: env.VAPID_SUBJECT || v.subject || 'mailto:animsa@localhost' };
 }
 
-function payloadFor(r, silent) {
-  return { title: '⏰ Hatırlatıcı', body: r.text, id: r.id, at: r.at, url: '/?r=' + encodeURIComponent(r.id), silent: !!silent };
+function validTz(tz) {
+  if (typeof tz !== 'string' || tz.length > 64) return null;
+  try { new Intl.DateTimeFormat('tr-TR', { timeZone: tz }); return tz; } catch { return null; }
+}
+function clockIn(at, tz) {
+  if (!tz) return '';
+  try { return new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz }).format(new Date(at)); } catch { return ''; }
+}
+/** Bildirim içeriği: başlıkta emoji + görev (iOS altına zaten "from Anımsa" ekler), gövdede saat */
+function payloadFor(r, rec) {
+  const text = r.text.length > 90 ? r.text.slice(0, 88).trim() + '…' : r.text;
+  const time = clockIn(r.at, rec && rec.tz);
+  const body = (r.snoozed ? 'Ertelendi · ' : '') + (time ? time + ' · ' : '') + 'Ertelemek için dokun';
+  return { title: emojiFor(r.text) + ' ' + text, body, id: r.id, at: r.at, url: '/?r=' + encodeURIComponent(r.id), silent: !!(rec && rec.silent) };
+}
+
+/* ── Ses → yazı (Workers AI / Whisper) ── */
+const STT_MAX = 2.5 * 1024 * 1024;
+const HALLUCINATIONS = /altyaz[ıi]|abone ol|izlediğiniz için|teşekkürler izlediğiniz|www\.|\.com/i;
+function b64std(u8) {
+  let s = '';
+  for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+async function transcribe(env, audio) {
+  let out = null, lastErr = null;
+  try {
+    out = await env.AI.run('@cf/openai/whisper-large-v3-turbo', { audio: b64std(audio), task: 'transcribe', language: 'tr', vad_filter: true });
+  } catch (e) { lastErr = e; }
+  if (!out || typeof out.text !== 'string') {
+    try { out = await env.AI.run('@cf/openai/whisper', { audio: Array.from(audio) }); } catch (e) { lastErr = e; out = null; }
+  }
+  if (!out || typeof out.text !== 'string') throw lastErr || new Error('stt_failed');
+  let text = out.text.replace(/\s+/g, ' ').trim();
+  if (HALLUCINATIONS.test(text)) text = '';   // Whisper'ın sessizlikte uydurduğu kalıplar
+  return text.slice(0, 300);
 }
 
 /* ── API ── */
@@ -113,7 +149,20 @@ async function handleApi(request, env, url, deps) {
   if (path === '/api/config') {
     if (request.method !== 'GET') return err(405, 'method_not_allowed', 'Yalnızca GET.');
     const v = await getVapid(env, url.origin);
-    return json({ ok: true, publicKey: v.publicKey });
+    return json({ ok: true, publicKey: v.publicKey, ai: !!(env.AI && env.AI.run) });
+  }
+  if (path === '/api/transcribe') {
+    if (request.method !== 'POST') return json({ ok: false, error: 'method_not_allowed', message: 'Yalnızca POST.' }, 405, { Allow: 'POST' });
+    if (!env.AI || !env.AI.run) return err(503, 'ai_missing', 'Sesli tanıma için Cloudflare\'de "AI" adlı Workers AI bağlaması gerekli.');
+    const ct = request.headers.get('content-type') || '';
+    if (!/^audio\//.test(ct)) return err(415, 'unsupported_media_type', 'Ses verisi bekleniyordu.');
+    const len = +(request.headers.get('content-length') || 0);
+    if (len > STT_MAX) return err(413, 'too_large', 'Kayıt çok uzun.');
+    const audio = new Uint8Array(await request.arrayBuffer());
+    if (audio.length > STT_MAX) return err(413, 'too_large', 'Kayıt çok uzun.');
+    if (audio.length < 2000) return err(400, 'too_short', 'Kayıt çok kısa.');
+    try { return json({ ok: true, text: await transcribe(env, audio) }); }
+    catch (e) { return err(502, 'stt_failed', 'Ses yazıya çevrilemedi. Biraz sonra tekrar dene.'); }
   }
   const routes = ['/api/subscribe', '/api/reminders', '/api/delete', '/api/sync', '/api/test'];
   if (!routes.includes(path)) return err(404, 'not_found', 'Böyle bir uç nokta yok.');
@@ -125,7 +174,7 @@ async function handleApi(request, env, url, deps) {
     const sub = cleanSubscription(body.sub);
     if (!sub) throw new HttpError(400, 'bad_subscription', 'Geçersiz bildirim aboneliği.');
     if ((await sha256Hex(sub.endpoint)) !== uid) throw new HttpError(400, 'uid_mismatch', 'Kimlik abonelikle eşleşmiyor.');
-    await env.KV.put('sub:' + uid, JSON.stringify({ sub, silent: body.silent === true, updatedAt: now }));
+    await env.KV.put('sub:' + uid, JSON.stringify({ sub, silent: body.silent === true, tz: validTz(body.tz), updatedAt: now }));
     // Abonelik yenilendiyse eski kimliğin bekleyenlerini yeni kimliğe taşı
     if (typeof body.oldUid === 'string' && UID_RE.test(body.oldUid) && body.oldUid !== uid) {
       await env.KV.delete('sub:' + body.oldUid);
@@ -147,7 +196,7 @@ async function handleApi(request, env, url, deps) {
     if (!(await getSub(env, uid))) throw new HttpError(404, 'not_subscribed', 'Bildirim aboneliği bulunamadı.');
     const list = (await readPending(env)).filter(r => !(r.uid === uid && r.id === id));
     if (list.length >= MAX_PENDING || list.filter(r => r.uid === uid).length >= MAX_PER_UID) throw new HttpError(429, 'too_many', 'Çok fazla bekleyen hatırlatıcı var.');
-    list.push({ uid, id, text, at, tries: 0 });
+    list.push({ uid, id, text, at, tries: 0, snoozed: body.snoozed === true });
     await writePending(env, list);
     return json({ ok: true });
   }
@@ -183,7 +232,7 @@ async function handleApi(request, env, url, deps) {
       // Geçmiş zamanlı kayıt sunucuda yoksa ekleme (zaten gönderilmiş olabilir)
       if (item.at <= now && !(old && old.at === item.at)) continue;
       if (item.at > now + 3 * 365 * 86400000) continue;
-      next.push({ uid, id, text, at: item.at, tries: old && old.at === item.at ? old.tries || 0 : 0 });
+      next.push({ uid, id, text, at: item.at, tries: old && old.at === item.at ? old.tries || 0 : 0, snoozed: item.snoozed === true });
     }
     if (next.length > MAX_PENDING) throw new HttpError(429, 'too_many', 'Çok fazla bekleyen hatırlatıcı var.');
     const sig = l => JSON.stringify(l.filter(r => r.uid === uid).map(r => [r.id, r.text, r.at]).sort());
@@ -196,7 +245,7 @@ async function handleApi(request, env, url, deps) {
     const rec = await getSub(env, uid);
     if (!rec) throw new HttpError(404, 'not_subscribed', 'Bildirim aboneliği bulunamadı.');
     const v = vapidFor(env, await getVapid(env));
-    const res = await sendPush(rec.sub, { title: '⏰ Hatırlatıcı', body: 'Test bildirimi: her şey yolunda! 🎉', id: 'test', at: now, url: '/', silent: rec.silent }, v, deps.fetch);
+    const res = await sendPush(rec.sub, { title: '🎉 Test bildirimi', body: 'Her şey yolunda. Hatırlatıcıların böyle görünecek.', id: 'test', at: now, url: '/', silent: rec.silent }, v, deps.fetch);
     if (res.ok) return json({ ok: true });
     if (res.gone) { await env.KV.delete('sub:' + uid); return err(410, 'subscription_gone', 'Abonelik geçersiz; bildirimleri yeniden açın.'); }
     return err(502, 'push_failed', 'Bildirim servisi isteği reddetti (' + res.status + ').');
@@ -222,7 +271,7 @@ export async function runCron(env, deps) {
     if (!subs.has(r.uid)) subs.set(r.uid, await getSub(env, r.uid));
     const rec = subs.get(r.uid);
     if (!rec) { remove.add(key(r)); dropped++; continue; }           // abonelik yok → gönderilemez
-    const res = await sendPush(rec.sub, payloadFor(r, rec.silent), v, deps.fetch);
+    const res = await sendPush(rec.sub, payloadFor(r, rec), v, deps.fetch);
     if (res.ok) { remove.add(key(r)); sent++; }
     else if (res.gone) { goneUids.add(r.uid); remove.add(key(r)); dropped++; await env.KV.delete('sub:' + r.uid); }
     else if ((r.tries || 0) + 1 >= MAX_TRIES) { remove.add(key(r)); dropped++; }

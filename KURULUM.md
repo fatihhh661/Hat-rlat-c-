@@ -60,11 +60,26 @@ Bildirimleri zamanında gönderen kısım budur.
 3. **Cron** alanına tam olarak şunu yazın: **`* * * * *`** (beş yıldız, aralarında birer boşluk). Bu "her dakika" demektir.
 4. **Add** / **Save** düğmesine basın.
 
+## 5b. Sesli tanımayı açın (Workers AI bağlaması)
+
+Küreye dokunup konuşunca sesin yazıya çevrilmesi için gerekir. iPhone, ana ekran uygulamalarında kendi konuşma tanımasını kullandırmadığı için ses, Cloudflare'in Workers AI hizmetindeki **Whisper** modeliyle yazıya çevrilir. Ayrı bir hesap ya da anahtar gerekmez.
+
+1. Worker'ın **Settings › Bindings** bölümüne girin (KV'yi eklediğiniz yer).
+2. **Add** › **Workers AI** seçin.
+3. **Variable name** alanına tam olarak **`AI`** yazın.
+4. **Save** / **Deploy** düğmesine basın.
+
+Notlar:
+- Sesiniz yalnızca yazıya çevrilmek için Cloudflare'e gönderilir; uygulama kaydı saklamaz.
+- Workers AI'ın günlük ücretsiz kotası kişisel kullanım için yeterlidir. Kota dolarsa o gün sesli tanıma çalışmaz, klavye mikrofonu her zaman çalışır.
+- Bu adımı atlarsanız uygulama çalışır, yalnızca küre sizi klavyedeki 🎤 simgesine yönlendirir.
+
 ## 6. Çalıştığını kontrol edin
 
 1. Worker sayfasının üstündeki adrese tıklayın (`https://animsa.KULLANICIADI.workers.dev`).
 2. Koyu renkli, parlayan bir küre ve "Söyle, unutma." yazısı görmelisiniz.
-3. Adresin sonuna `/api/config` ekleyip açın. Şuna benzer bir yazı görmelisiniz: `{"ok":true,"publicKey":"B..."}`.
+3. Adresin sonuna `/api/config` ekleyip açın. Şuna benzer bir yazı görmelisiniz: `{"ok":true,"publicKey":"B...","ai":true}`.
+   - Sonda `"ai":false` yazıyorsa 5b adımını kontrol edin (değişken adı tam olarak `AI`).
    - `kv_missing` hatası görürseniz 4b adımını tekrar kontrol edin (değişken adı tam olarak `KV` olmalı).
 
 ## 7. iPhone'a kurun
@@ -98,7 +113,7 @@ Tanıtımı atladıysanız: sağ üstteki ayar düğmesi › **Bildirimleri aç*
 
 - **Yazarak:** Alttaki kutuya "Yarın sabah 9'da toplantı" gibi yazın. Altında "Anladığım: Yarın 09:00 • Toplantı" görünür. Klavyede **Bitti**'ye basın, açılan kartta **Hatırlat**'a dokunun.
 - **Klavye mikrofonuyla:** Kutuya dokunun, klavyedeki 🎤 simgesine basıp konuşun.
-- **Uygulama mikrofonuyla:** Sağdaki parlayan küreye dokunun. (iOS bazı sürümlerde ana ekran uygulamalarında konuşma tanımaya izin vermez. O zaman uygulama sizi klavye mikrofonuna yönlendirir.)
+- **Uygulama mikrofonuyla:** Sağdaki parlayan küreye dokunun, konuşun. Susunca (ya da ✓'ye dokununca) kayıt biter, 1–3 saniye içinde onay kartı açılır. İlk seferde iPhone mikrofon izni ister: **İzin Ver**. Konuşurken yazı canlı akmaz, bitince bir anda gelir.
 - **Hızlı çipler:** Önce görevi yazın, sonra "10 dk sonra" gibi bir çipe dokunun.
 - **Silme:** Kartı sola kaydırın. Hızlı kaydırırsanız doğrudan silinir. "Sıradaki hatırlatıcı" kartında çöp kutusuna iki kez dokunun.
 - **Erteleme:** Bildirime dokunup uygulamayı açınca "10 dk ertele / 1 saat ertele / Tamam" seçenekleri çıkar.
@@ -109,7 +124,7 @@ Tanıtımı atladıysanız: sağ üstteki ayar düğmesi › **Bildirimleri aç*
 - **Dakika hassasiyeti:** Zamanlayıcı dakikada bir çalışır. Bildirim, ayarlanan zamandan **en fazla 1–2 dakika** geç (ya da en çok 15 saniye erken) gelebilir. Cloudflare'in yoğun anlarında birkaç dakikalık gecikme nadiren olabilir.
 - **Odak / Rahatsız Etme modu** açıksa bildirim sessiz gelebilir ya da görünmeyebilir. Ayarlar › Odak bölümünden Anımsa'ya izin verebilirsiniz.
 - **Bildirim sesi:** iOS, web uygulamalarına özel ses seçtirmez. Ses iPhone'un varsayılan bildirim sesidir. "Sessiz" seçeneğini bazı iOS sürümleri yok sayabilir.
-- **Uygulama içi mikrofon** iOS'ta her zaman çalışmayabilir. Klavye mikrofonu her zaman çalışır.
+- **Uygulama içi mikrofon** internet ve Workers AI bağlaması gerektirir (5b). Klavye mikrofonu her zaman çalışır.
 - **Tekrarlayan hatırlatıcı yok** (tasarım gereği).
 - Uygulama açıkken zamanı gelen hatırlatıcı için ekranda da zil çalan bir uyarı çıkar (yedek).
 

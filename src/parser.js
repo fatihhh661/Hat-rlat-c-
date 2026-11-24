@@ -449,3 +449,21 @@ export function dayLabel(d, now) {
 }
 export function hhmm(d) { return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
 export function fullDate(d) { return GUNLER[d.getDay()] + ', ' + d.getDate() + ' ' + AYLAR[d.getMonth()]; }
+
+/* Göreve göre otomatik emoji (istemci kartları ve sunucu bildirimleri ortak kullanır) */
+const EMOJI_RULES = [
+  ['💊', /(^|\s)(ilaç|ilac|hap|vitamin|şurup|iğne)/],
+  ['🩺', /(^|\s)(doktor|dişçi|diş|hastane|muayene|tahlil|eczane|klinik)/],
+  ['✈️', /(^|\s)(uçak|uçuş|havalimanı|havaalanı|uçağ|check-in)/],
+  ['📞', /(^|\s)(ara$|ara\s|aran|aray|arama|telefon|tel\s|görüntülü)/],
+  ['👥', /(^|\s)(toplantı|görüşme|meeting|sunum|buluş|zoom|teams|mülakat)/],
+  ['🏋️', /(^|\s)(spor|koşu|yoga|pilates|antrenman|salon|yürüyüş|gym|fitness|yüzme)/],
+  ['🍽️', /(^|\s)(yemek|kahvaltı|akşam yemeği|öğle yemeği|restoran|pişir|fırın|çay|kahve)/],
+  ['💧', /(^|\s)(su\s|su$|sula|bardak su)/],
+  ['🛒', /(^|\s)(alışveriş|market|süt|ekmek|manav|bakkal|sipariş|kargo)/]
+];
+export function emojiFor(text) {
+  const t = lower(text) + ' ';
+  for (const [e, re] of EMOJI_RULES) if (re.test(t)) return e;
+  return '🔔';
+}

@@ -39,7 +39,7 @@ const manifest = JSON.stringify({
 const ASSETS = { html: page, sw, manifest, icon180: b64('src/icons/icon-180.png'), icon192: b64('src/icons/icon-192.png'), icon512: b64('src/icons/icon-512.png') };
 
 // 4) Sunucu kodu
-const server = stripModule(r('src/push.js')) + '\n' + stripModule(r('src/server.js'));
+const server = stripModule(r('src/parser.js')) + '\n' + stripModule(r('src/push.js')) + '\n' + stripModule(r('src/server.js'));
 
 const out = `/* ════════════════════════════════════════════════════════════════
    ANIMSA — Sesli & yazılı hatırlatıcı (iPhone PWA)  ·  sürüm ${VERSION}

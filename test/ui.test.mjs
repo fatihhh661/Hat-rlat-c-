@@ -17,7 +17,8 @@ const errors = [];
 const iphone = { ...devices['iPhone 13'], viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 } };
 
 async function newPage(opts = {}) {
-  const ctx = await browser.newContext({ ...iphone, locale: 'tr-TR', timezoneId: 'Europe/Istanbul', reducedMotion: opts.reduced ? 'reduce' : 'no-preference', permissions: ['microphone'] });
+  const base = opts.desktop ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 } : iphone;
+  const ctx = await browser.newContext({ ...base, locale: 'tr-TR', timezoneId: 'Europe/Istanbul', reducedMotion: opts.reduced ? 'reduce' : 'no-preference', permissions: ['microphone'] });
   if (opts.onboarded) await ctx.addInitScript(() => { if (!localStorage.getItem('anımsa.settings')) localStorage.setItem('anımsa.settings', JSON.stringify({ onboarded: true })); });
   if (opts.fakeSpeech) await ctx.addInitScript(() => {
     window.SpeechRecognition = window.webkitSpeechRecognition = class {
@@ -36,7 +37,9 @@ async function newPage(opts = {}) {
   });
   if (opts.noSpeech) await ctx.addInitScript(() => { delete window.webkitSpeechRecognition; delete window.SpeechRecognition; });
   if (opts.iosSafariTab) await ctx.addInitScript(() => { delete window.Notification; delete window.PushManager; });
+  if (opts.noGUM) await ctx.addInitScript(() => { try { Object.defineProperty(navigator, 'mediaDevices', { value: undefined }); } catch (e) {} });
   if (opts.init) await ctx.addInitScript(opts.init);
+  if (opts.routes) for (const [pat, fn] of opts.routes) await ctx.route(pat, fn);
   const page = await ctx.newPage();
   page.on('console', m => { if (m.type() === 'error') errors.push(`[${opts.tag || 'sayfa'}] ${m.text()}`); });
   page.on('pageerror', e => errors.push(`[${opts.tag || 'sayfa'}] pageerror: ${e.message}`));
@@ -173,24 +176,53 @@ try {
     await ctx.close();
   }
 
-  /* ── 3) Mikrofon: konuşma tanıma ── */
+  /* ── 3a) Mikrofon (iPhone): kayıt + Whisper ── */
   {
-    const { ctx, page } = await newPage({ onboarded: true, fakeSpeech: true, tag: 'mikrofon' });
-    await wait(500);
-    await page.click('#orb'); await wait(1500);
-    ok('Dinleme sahnesi açılıyor, metin canlı akıyor', await page.evaluate(() => document.getElementById('listen').classList.contains('open')) && (await page.textContent('#listenText')).length > 0);
-    ok('Ses seviyesi (AnalyserNode / nabız) küreyi canlandırıyor', await page.evaluate(() => parseFloat(document.getElementById('bigOrb').style.getPropertyValue('--lvl')) > 0));
+    const { ctx, page } = await newPage({ onboarded: true, tag: 'mikrofon-kayit' });
+    let sentType = null, sentBody = null;
+    await page.route('**/api/transcribe', r => { sentType = r.request().headers()['content-type']; sentBody = r.request().postDataBuffer(); r.continue(); });
+    await wait(700);
+    await page.click('#orb'); await wait(900);
+    const mic = await page.evaluate(() => window.__animsa.mic);
+    ok('iPhone: kayıt yolu seçildi, gerçek mikrofon + ses analizörü çalışıyor, örnekler toplanıyor', mic && mic.mode === 'record' && mic.analyser && mic.chunks > 0 && mic.rate > 0, JSON.stringify(mic));
+    ok('iPhone: dinleme sahnesi açık, küre seviyeye göre canlanıyor', await page.evaluate(() => document.getElementById('listen').classList.contains('open') && parseFloat(document.getElementById('bigOrb').style.getPropertyValue('--lvl')) > 0));
     await page.screenshot({ path: SHOT('14-dinleme') });
-    await wait(500);
-    await page.click('#listenDone'); await wait(1600);
-    ok('Konuşma bitince onay kartı: "Toplantı", yarın 09:00', (await page.inputValue('#taskInput')) === 'Toplantı' && (await page.inputValue('#timeInput')) === '09:00' && (await page.textContent('#dateTxt')) === 'Yarın');
+    // Sessizlik algılanıp kayıt kendiliğinden bitmiş olabilir; hâlâ dinliyorsa ✓'ye bas
+    await page.evaluate(() => { if (window.__animsa.mic) document.getElementById('listenDone').click(); });
+    await wait(2200);
+    const wavOk = sentBody && sentBody.toString('ascii', 0, 4) === 'RIFF' && sentBody.toString('ascii', 8, 12) === 'WAVE' && sentBody.readUInt32LE(24) === 16000 && sentBody.readUInt16LE(22) === 1 && sentBody.readUInt16LE(34) === 16;
+    ok('Kayıt 16 kHz, mono, 16-bit WAV olarak gönderildi', sentType === 'audio/wav' && wavOk && sentBody.length > 16000, `${sentType} ${sentBody && sentBody.length}`);
+    ok('Whisper metni → onay kartı: "Toplantı", yarın 09:00', (await page.inputValue('#taskInput')) === 'Toplantı' && (await page.inputValue('#timeInput')) === '09:00' && (await page.textContent('#dateTxt')) === 'Yarın');
     await page.screenshot({ path: SHOT('15-sesten-onay-karti') });
-    ok('Mikrofon akışı ve animasyon döngüleri kapatıldı', await page.evaluate(() => !document.getElementById('listen').classList.contains('open') && document.querySelectorAll('.ripple').length === 0));
+    ok('Mikrofon, ses bağlamı ve animasyonlar kapatıldı', await page.evaluate(() => !document.getElementById('listen').classList.contains('open') && document.querySelectorAll('.ripple').length === 0));
     await ctx.close();
   }
   {
-    // iOS'taki durum: tanıma başlıyor gibi görünüp hiç sonuç/olay vermiyor, stop() de onend tetiklemiyor
-    const { ctx, page } = await newPage({ onboarded: true, tag: 'mikrofon-takili', init: () => {
+    // Cloudflare'de AI bağlaması unutulduysa: açık yönlendirme
+    const { ctx, page } = await newPage({ onboarded: true, tag: 'mikrofon-ai-yok', routes: [['**/api/transcribe', r => r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'ai_missing', message: 'x' }) })]] });
+    await wait(600);
+    await page.click('#orb'); await wait(900);
+    await page.evaluate(() => { if (window.__animsa.mic) document.getElementById('listenDone').click(); });
+    await wait(2000);
+    const hint = await page.textContent('#hint');
+    ok('AI bağlaması yoksa: "Workers AI bağlaması ekle" yönlendirmesi', hint.includes('"AI" adlı Workers AI bağlaması'), hint);
+    await page.screenshot({ path: SHOT('16-mikrofon-ai-yok') });
+    await ctx.close();
+  }
+  /* ── 3b) Mikrofon (diğer tarayıcılar): tarayıcı tanıması, canlı yazı ── */
+  {
+    const { ctx, page } = await newPage({ desktop: true, onboarded: true, fakeSpeech: true, tag: 'mikrofon-tarayici' });
+    await wait(500);
+    await page.click('#orb'); await wait(1500);
+    ok('Tarayıcı tanıması: metin canlı akıyor', (await page.textContent('#listenText')).length > 0);
+    await wait(500);
+    await page.click('#listenDone'); await wait(1600);
+    ok('Tarayıcı tanıması → onay kartı: "Toplantı", yarın 09:00', (await page.inputValue('#taskInput')) === 'Toplantı' && (await page.inputValue('#timeInput')) === '09:00');
+    await ctx.close();
+  }
+  {
+    // Tanıma hiç yanıt vermiyor, stop() de onend tetiklemiyor
+    const { ctx, page } = await newPage({ desktop: true, onboarded: true, noGUM: true, tag: 'mikrofon-takili', init: () => {
       window.SpeechRecognition = window.webkitSpeechRecognition = class { start() {} stop() {} abort() {} };
     } });
     await wait(400);
@@ -203,8 +235,7 @@ try {
     await ctx.close();
   }
   {
-    // Bekçi: kullanıcı hiçbir şeye dokunmazsa 6 sn sonra kendiliğinden kapanır
-    const { ctx, page } = await newPage({ onboarded: true, tag: 'mikrofon-bekci', init: () => {
+    const { ctx, page } = await newPage({ desktop: true, onboarded: true, noGUM: true, tag: 'mikrofon-bekci', init: () => {
       window.SpeechRecognition = window.webkitSpeechRecognition = class { start() {} stop() {} abort() {} };
     } });
     await wait(400);
@@ -213,12 +244,11 @@ try {
     await ctx.close();
   }
   {
-    const { ctx, page } = await newPage({ onboarded: true, noSpeech: true, tag: 'mikrofon-yok' });
+    const { ctx, page } = await newPage({ desktop: true, onboarded: true, noSpeech: true, noGUM: true, tag: 'mikrofon-yok' });
     await wait(400);
     await page.click('#orb'); await wait(300);
     const hint = await page.textContent('#hint');
-    ok('Konuşma tanıma yoksa: hata yok, klavye ipucu gösteriliyor', hint.includes('Klavyedeki 🎤 simgesine dokunarak konuşabilirsin.') && await page.evaluate(() => document.activeElement.id === 'input'));
-    await page.screenshot({ path: SHOT('16-mikrofon-ipucu') });
+    ok('Ne tanıma ne mikrofon varsa: hata yok, klavye ipucu', hint.includes('Klavyedeki 🎤 simgesine dokunarak konuşabilirsin.') && await page.evaluate(() => document.activeElement.id === 'input'));
     await wait(3200);
     ok('İpucu 3 sn sonra kayboluyor', !(await page.evaluate(() => document.getElementById('hint').classList.contains('show'))));
     await ctx.close();
@@ -267,7 +297,9 @@ try {
   fail++; console.log('❌ Test betiği hata verdi:', e);
 }
 
-ok('Hiçbir sayfada console hatası yok', errors.length === 0, '\n   ' + errors.join('\n   '));
+// Bilerek 503 döndürdüğümüz test sayfasındaki ağ hatası beklenen bir durumdur
+const realErrors = errors.filter(e => !(e.startsWith('[mikrofon-ai-yok]') && /status of 503/.test(e)));
+ok('Hiçbir sayfada console hatası yok', realErrors.length === 0, '\n   ' + realErrors.join('\n   '));
 await browser.close();
 server.close();
 console.log(`\nArayüz: ${pass}/${pass + fail} geçti`);

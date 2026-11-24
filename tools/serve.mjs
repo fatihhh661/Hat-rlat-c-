@@ -9,10 +9,13 @@ const KV = {
   async put(k, v) { store.set(k, String(v)); },
   async delete(k) { store.delete(k); }
 };
-const env = { KV };
+// Sahte Workers AI (yalnızca yerel test): MOCK_AI_TEXT ortam değişkeni ya da varsayılan cümle
+const AI = { async run(model, input) { return { text: process.env.MOCK_AI_TEXT || "Yarın sabah 9'da toplantı." }; } };
+const env = { KV, AI: process.env.NO_AI ? undefined : AI };
 const port = +(process.argv[2] || 8787);
 
-export function start(p = port) {
+export function start(p = port, opts = {}) {
+  if (opts.noAI) env.AI = undefined; else if (opts.noAI === false) env.AI = AI;
   const server = http.createServer(async (req, res) => {
     try {
       const chunks = []; for await (const c of req) chunks.push(c);

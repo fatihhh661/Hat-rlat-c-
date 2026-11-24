@@ -43,7 +43,7 @@ self.addEventListener('push', event => {
   let data = null;
   try { data = event.data ? event.data.json() : null; } catch (e) { data = null; }
   const ok = data && typeof data === 'object' && typeof data.body === 'string';
-  const title = ok && typeof data.title === 'string' ? data.title : '⏰ Hatırlatıcı';
+  const title = ok && typeof data.title === 'string' && data.title.trim() ? data.title : '⏰ Hatırlatıcı';
   const opts = {
     body: ok ? data.body : 'Hatırlatıcı zamanı',
     icon: '/icon-192.png',
@@ -57,6 +57,11 @@ self.addEventListener('push', event => {
   event.waitUntil((async () => {
     try { await self.registration.showNotification(title, opts); }
     catch (e) { await self.registration.showNotification('⏰ Hatırlatıcı', { body: 'Hatırlatıcı zamanı', icon: '/icon-192.png' }); }
+    // Ana ekran simgesinde bekleyen bildirim sayısı (iOS 16.4+)
+    try {
+      const shown = self.registration.getNotifications ? await self.registration.getNotifications() : [];
+      if (self.navigator.setAppBadge && opts.data.id !== 'test') await self.navigator.setAppBadge(Math.max(1, shown.filter(n => n.tag !== 'animsa-test').length));
+    } catch (e) { /* desteklenmiyor */ }
     // Uygulama açıksa ekranda da zil göster
     try {
       const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
