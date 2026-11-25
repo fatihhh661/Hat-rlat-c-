@@ -60,7 +60,7 @@ self.addEventListener('push', event => {
     // Ana ekran simgesinde bekleyen bildirim sayısı (iOS 16.4+)
     try {
       const shown = self.registration.getNotifications ? await self.registration.getNotifications() : [];
-      if (self.navigator.setAppBadge && opts.data.id !== 'test') await self.navigator.setAppBadge(Math.max(1, shown.filter(n => n.tag !== 'animsa-test').length));
+      if (self.navigator.setAppBadge && opts.data.id !== 'test' && !(ok && data.pre)) await self.navigator.setAppBadge(Math.max(1, shown.filter(n => n.tag !== 'animsa-test').length));
     } catch (e) { /* desteklenmiyor */ }
     // Uygulama açıksa ekranda da zil göster
     try {

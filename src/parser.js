@@ -117,6 +117,7 @@ export function parse(metin, simdi) {
   const free = i => T[i] && !T[i].used;
 
   let relMs = null;          // dakika/saat cinsinden göreli süre
+  let leadMin = 0;           // "15 dakika önce (de) hatırlat" → önceden uyarı (dakika)
   let relDays = null;        // gün/hafta/ay cinsinden göreli süre
   let date = null;           // { kind: 'offset'|'weekday'|'abs'|'monthEnd', ... }
   let period = null;         // sabah | oglen | ogleden | ikindi | aksam | aksamustu | gece
@@ -168,6 +169,13 @@ export function parse(metin, simdi) {
     const nx = T[j] && T[j].n;
     if (!terminal && (nx === 'sonra' || nx === 'içinde' || nx === 'içerisinde' || nx === 'sonrası' || nx === 'zarfında')) { terminal = true; j++; }
     if (!terminal && nx === 'geçince') { terminal = true; j++; }
+    // "15 dakika önce", "yarım saat önceden", "1 gün evvel" → süre değil, önceden uyarı
+    if (!terminal && (nx === 'önce' || nx === 'önceden' || nx === 'evvel' || nx === 'evvelden')) {
+      use(i, j - i + 1);
+      leadMin = Math.round((total.ms + total.days * 86400000) / 60000);
+      i = j;
+      continue;
+    }
     if (!terminal) continue;
     use(i, j - i);
     if (total.ms) relMs = (relMs || 0) + total.ms;
@@ -427,6 +435,7 @@ export function parse(metin, simdi) {
     güven: Math.round(guven * 100) / 100,
     yarinaAtildi: rolled,
     sözcükTürleri: turler,
+    öncedenDk: leadMin > 0 && leadMin <= 7 * 1440 ? leadMin : 0,
     varsayilanSaat: !saatBelirtildiMi ? pad2(zaman.getHours()) + ':' + pad2(zaman.getMinutes()) : null
   };
 
@@ -552,6 +561,13 @@ export function dayLabel(d, now) {
   if (diff === -1) return 'Dün';
   const base = GUNLER[d.getDay()] + ', ' + d.getDate() + ' ' + AYLAR[d.getMonth()];
   return d.getFullYear() !== now.getFullYear() ? base + ' ' + d.getFullYear() : base;
+}
+/** Önceden uyarı süresinin okunuşu: 10 → "10 dk", 60 → "1 saat", 90 → "1,5 saat", 1440 → "1 gün" */
+export function leadLabel(m) {
+  if (m % 1440 === 0) return (m / 1440) + ' gün';
+  if (m % 60 === 0) return (m / 60) + ' saat';
+  if (m > 60 && m % 30 === 0) return String(m / 60).replace('.', ',') + ' saat';
+  return m + ' dk';
 }
 export function hhmm(d) { return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
 export function fullDate(d) { return GUNLER[d.getDay()] + ', ' + d.getDate() + ' ' + AYLAR[d.getMonth()]; }

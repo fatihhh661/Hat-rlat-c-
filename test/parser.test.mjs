@@ -143,6 +143,10 @@ const extra = [
   ['sözcük türleri: "yarın sabah 9\'da toplantı hatırlat" → zaman×3, görev, dolgu', (() => { const k = parse('yarın sabah 9\'da toplantı hatırlat', NOW).sözcükTürleri; return k.join() === 'zaman,zaman,zaman,görev,dolgu'; })()],
   ['sözcük türleri: rica yan cümlesi dolgu sayılır', (() => { const k = parse('Su iç. Bana bunu hatırlat.', NOW).sözcükTürleri; return k.join() === 'görev,görev,dolgu,dolgu,dolgu'; })()],
   ['kategori rengi: ilaç pembe, arama yeşil, bilinmeyen varsayılan', (() => { const m = parse; return categoryOf('İlacını iç').color === '#FF5CAA' && categoryOf('Annemi ara').key === 'arama' && categoryOf('Kurs').key === 'genel'; })()],
+  ['önceden uyarı: "saat 16\'da toplantı, 15 dakika önce de hatırlat" → 16:00, 15 dk, "Toplantı"', (() => { const p = parse('saat 16\'da toplantı, 15 dakika önce de hatırlat', NOW); return p.zaman.getHours() === 16 && p.öncedenDk === 15 && p.görev === 'Toplantı'; })()],
+  ['önceden uyarı: "yarın 10\'da dişçi yarım saat önceden" → 30 dk', (() => { const p = parse('yarın 10\'da dişçi yarım saat önceden', NOW); return p.öncedenDk === 30 && p.görev === 'Dişçi' && p.zaman.getDate() === 25; })()],
+  ['önceden uyarı: "cuma 9\'da uçuş, 1 gün önce hatırlat" → 1440 dk', (() => { const p = parse('cuma 9\'da uçuş, 1 gün önce hatırlat', NOW); return p.öncedenDk === 1440 && p.görev === 'Uçuş'; })()],
+  ['önceden uyarı yoksa 0', parse('akşam 8\'de annemi ara', NOW).öncedenDk === 0],
   ['yarına atıldı işareti', parse('saat 10\'da', NOW).yarinaAtildi === false && parse('saat 13:00', NOW).yarinaAtildi === true],
 ];
 for (const [name, ok] of extra) { rows.push({ text: name, exp: 'doğru', got: ok ? 'doğru' : 'YANLIŞ', ok }); if (ok) pass++; }

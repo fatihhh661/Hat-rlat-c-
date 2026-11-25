@@ -304,6 +304,46 @@ for (const st of [500, 429, 503, 'throw']) {
   ok('Geçersiz saat dilimi yok sayılıyor (abonelik yine kabul)', bad.res.status === 200 && e.KV.json('sub:' + u).tz === null);
 }
 
+/* ═══ Önceden uyarı ═══ */
+{
+  const { e, s, u } = await freshEnv();
+  const H = 3600000, M = 60000;
+  // 20:00'deki hatırlatıcı (NOW + 1 saat), 30 dk önce uyarı
+  let r = await call(e, post('/api/reminders', { uid: u, id: 'lead-0001', text: 'Annemi ara', at: NOW + H, lead: 30 }));
+  let pend = e.KV.json('pending').find(x => x.id === 'lead-0001');
+  ok('Önceden uyarılı hatırlatıcı kaydedildi (lead 30, henüz gönderilmedi)', r.res.status === 200 && pend.lead === 30 && pend.preSent === false);
+  r = await call(e, post('/api/reminders', { uid: u, id: 'lead-late1', text: 'Geç kurulan', at: NOW + 10 * M, lead: 30 }));
+  ok('Uyarı zamanı zaten geçmişse ön uyarı gönderilmiş sayılır', e.KV.json('pending').find(x => x.id === 'lead-late1').preSent === true);
+  r = await call(e, post('/api/reminders', { uid: u, id: 'lead-bad01', text: 'x', at: NOW + H, lead: -5 }));
+  ok('Geçersiz önceden uyarı süresi 0 sayılır', e.KV.json('pending').find(x => x.id === 'lead-bad01').lead === 0);
+  await call(e, post('/api/delete', { uid: u, id: 'lead-late1' })); await call(e, post('/api/delete', { uid: u, id: 'lead-bad01' }));
+
+  const saved = NOW;
+  NOW = saved + 29 * M; let f = pushService(201); await cron(e, f);
+  ok('Uyarı zamanından önce hiçbir şey gönderilmiyor', f.calls.length === 0);
+  NOW = saved + 30 * M; f = pushService(201); await cron(e, f);
+  const pre = f.calls[0] && decrypt(f.calls[0].init.body, s);
+  pend = e.KV.json('pending').find(x => x.id === 'lead-0001');
+  ok('30 dk önce: önceden uyarı gönderildi ("⏳ 30 dk sonra · 15:00")', f.calls.length === 1 && pre.title === '📞 Annemi ara' && pre.body === '⏳ 30 dk sonra · 15:00' && pre.pre === true, JSON.stringify(pre));
+  ok('Önceden uyarıdan sonra asıl hatırlatma beklemede kalıyor (preSent: true)', pend && pend.preSent === true);
+  NOW = saved + 31 * M; f = pushService(201); await cron(e, f);
+  ok('Önceden uyarı ikinci kez gönderilmiyor', f.calls.length === 0);
+  NOW = saved + 60 * M; f = pushService(201); await cron(e, f);
+  const main = f.calls[0] && decrypt(f.calls[0].init.body, s);
+  ok('Asıl zamanda normal hatırlatma gönderildi ve kayıt silindi', f.calls.length === 1 && main.body === '15:00 · Ertelemek için dokun' && !main.pre && !e.KV.json('pending').some(x => x.id === 'lead-0001'), JSON.stringify(main));
+  NOW = saved;
+
+  // Ön uyarı başarısız olsa da asıl hatırlatma gider
+  await call(e, post('/api/reminders', { uid: u, id: 'lead-0002', text: 'Toplantı', at: NOW + H, lead: 30 }));
+  NOW = saved + 30 * M; f = pushService(503); await cron(e, f); NOW = saved;
+  ok('Ön uyarı geçici hata verirse tekrar denenmez, asıl hatırlatma bekler', f.calls.length === 1 && e.KV.json('pending').find(x => x.id === 'lead-0002').preSent === true);
+  // Senkron: lead korunur, değişmeyen kayıtta preSent korunur
+  r = await call(e, post('/api/sync', { uid: u, reminders: [{ id: 'lead-0002', text: 'Toplantı', at: NOW + H, lead: 30 }] }));
+  ok('Senkron: aynı kayıt için önceden uyarı durumu korunuyor', e.KV.json('pending').find(x => x.id === 'lead-0002').preSent === true);
+  r = await call(e, post('/api/sync', { uid: u, reminders: [{ id: 'lead-0002', text: 'Toplantı', at: NOW + 2 * H, lead: 30 }] }));
+  ok('Senkron: zamanı değişen kayıtta önceden uyarı yeniden kuruluyor', e.KV.json('pending').find(x => x.id === 'lead-0002').preSent === false);
+}
+
 /* ═══ Ses → yazı (Workers AI) ═══ */
 {
   const wav = (n = 8000) => { const b = Buffer.alloc(44 + n); b.write('RIFF', 0); b.write('WAVE', 8); return b; };

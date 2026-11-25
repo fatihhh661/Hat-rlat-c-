@@ -99,6 +99,19 @@ try {
     ok('Sıradaki hatırlatıcı kartında görünüyor', (await page.textContent('#hero')).includes('Ahmet aranacak'));
     await page.screenshot({ path: SHOT('07-kayit-sonrasi') });
 
+    // Önceden uyarı: sesle söylenen süre seçili gelir, uzun seçenekler kalan süreye göre kapanır
+    await page.fill('#input', "saat 23:50'de ilacımı iç, 15 dakika önce hatırlat"); await page.press('#input', 'Enter'); await wait(900);
+    const lc = await page.evaluate(() => Array.from(document.querySelectorAll('#leadChips button')).map(b => [b.textContent, b.getAttribute('aria-pressed'), b.disabled]));
+    ok('Önceden uyar: "15 dakika önce" seçili geliyor, görev "İlacını iç"', lc.some(([t, p]) => t === '15 dk' && p === 'true') && (await page.inputValue('#taskInput')) === 'İlacını iç', JSON.stringify(lc));
+    await page.click('#leadChips [data-lead="30"]').catch(() => {});
+    await page.click('#saveBtn'); await wait(1500);
+    const saved = await page.evaluate(() => window.__animsa.state.reminders.find(r => r.text === 'İlacını iç'));
+    ok('Seçilen önceden uyarı kaydedildi (30 dk)', saved && (saved.lead === 30 || (saved.lead === 15 && (saved.at - Date.now()) / 60000 <= 30)), JSON.stringify(saved && saved.lead));
+    await page.fill('#input', '5 dakika sonra çay'); await page.press('#input', 'Enter'); await wait(900);
+    const dis = await page.evaluate(() => Array.from(document.querySelectorAll('#leadChips button')).filter(b => b.disabled).map(b => b.dataset.lead));
+    ok('5 dk kalan hatırlatıcıda 10 dk / 30 dk / 1 saat seçenekleri devre dışı', dis.join() === '10,30,60', dis.join());
+    await page.click('#cancelBtn'); await wait(500);
+
     // Saat belirtilmeyen cümle → sarı uyarı
     await page.fill('#input', 'süt al');
     await page.keyboard.press('Enter'); await page.press('#input', 'Enter').catch(() => {});
@@ -150,8 +163,11 @@ try {
     await page.mouse.down();
     for (let i = 1; i <= 12; i++) { await page.mouse.move(box.x + box.width - 20 - i * 24, box.y + box.height / 2); await wait(8); }
     await page.mouse.up();
-    await wait(900);
-    ok('Sola hızlı kaydırma kartı siliyor', (await page.evaluate(() => window.__animsa.state.reminders.length)) === before - 1);
+    // Yavaş (GPU'suz) test tarayıcısında silme animasyonu sabit bir süreyi aşabilir: silinene kadar en fazla 4 sn bekle
+    await page.waitForFunction(n => window.__animsa.state.reminders.length === n, before - 1, { timeout: 4000 }).catch(() => {});
+    const afterLen = await page.evaluate(() => window.__animsa.state.reminders.length);
+    const diag = afterLen === before - 1 ? '' : JSON.stringify(await page.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y); return { at: el && (el.id || el.className), sheet: document.getElementById('sheet').classList.contains('open'), alarm: document.getElementById('alarm').classList.contains('open'), scrim: document.getElementById('scrim').classList.contains('open'), toasts: document.getElementById('toasts').children.length, firstCard: document.querySelector('#list .card-wrap .card-title') && document.querySelector('#list .card-wrap .card-title').textContent }; }, [box.x + box.width - 20, box.y + box.height / 2]));
+    ok('Sola hızlı kaydırma kartı siliyor', afterLen === before - 1, diag);
 
     // Geçmiş sekmesi
     await page.click('#tabPast'); await wait(600);

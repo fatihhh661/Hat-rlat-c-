@@ -70,6 +70,8 @@ input, textarea { -webkit-user-select: text; user-select: text; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 :focus-visible { outline: 2px solid var(--accent-2); outline-offset: 3px; border-radius: 12px; }
+/* Programla odaklanan kapsayıcılar (kart, panel, alarm) çerçeve göstermez; içindeki düğmeler gösterir */
+.sheet:focus, .panel:focus, .listen:focus, .onb:focus { outline: none; }
 
 /* Basma geri bildirimi */
 .press { transition: transform 160ms var(--ease), opacity 160ms var(--ease); }
@@ -342,6 +344,14 @@ body.low-power .aurora.a3 { display: none; }
 .time-note { margin: 10px 4px 0; font-size: 0.875rem; color: var(--warn); display: flex; align-items: center; gap: 6px; }
 .time-note.bad { color: var(--danger); }
 .time-note.info { color: var(--text-2); }
+.lead-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 14px 2px 0; flex-wrap: wrap; }
+.lead-lbl { font-size: 0.9375rem; color: var(--text-2); font-weight: 500; }
+.lead-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.lead-chips button { height: 34px; padding: 0 12px; border-radius: 999px; font-size: 0.8125rem; font-weight: 600; color: var(--text-2); background: rgba(255,255,255,0.05); box-shadow: inset 0 0 0 1px var(--stroke); transition: background 200ms, color 200ms, box-shadow 200ms, transform 160ms var(--ease); }
+.lead-chips button:active { transform: scale(0.95); }
+.lead-chips button[aria-pressed="true"] { color: #fff; background: linear-gradient(135deg, rgba(124,92,255,0.55), rgba(25,211,255,0.45)); box-shadow: inset 0 0 0 1px rgba(25,211,255,0.55), 0 0 18px rgba(25,211,255,0.2); }
+.lead-chips button[disabled] { opacity: 0.32; }
+.card-sub .lead { margin-left: 6px; color: var(--accent-2); font-size: 0.8125rem; }
 .left-line { margin: 14px 4px 0; display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 0.9375rem; }
 .left-line svg { width: 18px; height: 18px; stroke: var(--accent-2); }
 .left-line b { color: var(--text-1); font-weight: 600; }

@@ -6,11 +6,12 @@
    KV anahtarları:
      vapid        → { publicKey, privateJwk, subject }
      sub:<uid>    → { sub, silent, tz, updatedAt }
-     pending      → [{ uid, id, text, at, tries, snoozed }]  (cron yalnızca bunu okur)
+     pending      → [{ uid, id, text, at, tries, snoozed, lead, preSent }]  (cron yalnızca bunu okur)
+                    lead: önceden uyarı (dakika); preSent: önceden uyarı gönderildi mi
    İsteğe bağlı "AI" bağlaması (Workers AI): /api/transcribe ile sesi Whisper'la yazıya çevirir.
    ════════════════════════════════════════════════════════════════ */
 import { generateVapidKeys, sendPush, cleanSubscription, sha256Hex } from './push.js';
-import { emojiFor } from './parser.js';
+import { emojiFor, leadLabel } from './parser.js';
 
 const MAX_PENDING = 1000;          // KV değerini makul boyutta tut
 const MAX_PER_UID = 300;
@@ -57,6 +58,10 @@ function needText(t) {
   if (!s) throw new HttpError(400, 'bad_text', 'Metin boş olamaz.');
   return s;
 }
+/** Önceden uyarı süresi (dakika): 0..10080 (7 gün). Geçersizse 0. */
+function cleanLead(v) { return Number.isInteger(v) && v > 0 && v <= 10080 ? v : 0; }
+/** Önceden uyarı zamanı zaten geçmişse "gönderildi" say (geç kurulan hatırlatıcıya anlamsız ön uyarı gitmesin) */
+const prePassed = (at, lead, now) => !lead || at - lead * 60000 <= now;
 function needAt(at, now) {
   if (typeof at !== 'number' || !Number.isFinite(at) || !Number.isInteger(at)) throw new HttpError(400, 'bad_at', 'Geçersiz zaman.');
   if (at < now - 10 * 60000) throw new HttpError(400, 'at_in_past', 'Bu zaman geçmişte kaldı.');
@@ -113,6 +118,12 @@ function clockIn(at, tz) {
   try { return new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz }).format(new Date(at)); } catch { return ''; }
 }
 /** Bildirim içeriği: başlıkta emoji + görev (iOS altına zaten "from Anımsa" ekler), gövdede saat */
+/** Önceden uyarı: "⏳ 30 dk sonra · 20:00" */
+function prePayloadFor(r, rec) {
+  const text = r.text.length > 90 ? r.text.slice(0, 88).trim() + '…' : r.text;
+  const time = clockIn(r.at, rec && rec.tz);
+  return { title: emojiFor(r.text) + ' ' + text, body: '⏳ ' + leadLabel(r.lead) + ' sonra' + (time ? ' · ' + time : ''), id: r.id, at: r.at, url: '/?r=' + encodeURIComponent(r.id), silent: !!(rec && rec.silent), pre: true };
+}
 function payloadFor(r, rec) {
   const text = r.text.length > 90 ? r.text.slice(0, 88).trim() + '…' : r.text;
   const time = clockIn(r.at, rec && rec.tz);
@@ -196,7 +207,8 @@ async function handleApi(request, env, url, deps) {
     if (!(await getSub(env, uid))) throw new HttpError(404, 'not_subscribed', 'Bildirim aboneliği bulunamadı.');
     const list = (await readPending(env)).filter(r => !(r.uid === uid && r.id === id));
     if (list.length >= MAX_PENDING || list.filter(r => r.uid === uid).length >= MAX_PER_UID) throw new HttpError(429, 'too_many', 'Çok fazla bekleyen hatırlatıcı var.');
-    list.push({ uid, id, text, at, tries: 0, snoozed: body.snoozed === true });
+    const lead = cleanLead(body.lead);
+    list.push({ uid, id, text, at, tries: 0, snoozed: body.snoozed === true, lead, preSent: prePassed(at, lead, now) });
     await writePending(env, list);
     return json({ ok: true });
   }
@@ -232,10 +244,11 @@ async function handleApi(request, env, url, deps) {
       // Geçmiş zamanlı kayıt sunucuda yoksa ekleme (zaten gönderilmiş olabilir)
       if (item.at <= now && !(old && old.at === item.at)) continue;
       if (item.at > now + 3 * 365 * 86400000) continue;
-      next.push({ uid, id, text, at: item.at, tries: old && old.at === item.at ? old.tries || 0 : 0, snoozed: item.snoozed === true });
+      const lead = cleanLead(item.lead), same = old && old.at === item.at && (old.lead || 0) === lead;
+      next.push({ uid, id, text, at: item.at, tries: same ? old.tries || 0 : 0, snoozed: item.snoozed === true, lead, preSent: same ? !!old.preSent || prePassed(item.at, lead, now) : prePassed(item.at, lead, now) });
     }
     if (next.length > MAX_PENDING) throw new HttpError(429, 'too_many', 'Çok fazla bekleyen hatırlatıcı var.');
-    const sig = l => JSON.stringify(l.filter(r => r.uid === uid).map(r => [r.id, r.text, r.at]).sort());
+    const sig = l => JSON.stringify(l.filter(r => r.uid === uid).map(r => [r.id, r.text, r.at, r.lead || 0]).sort());
     const changed = sig(next) !== sig(list);
     if (changed) await writePending(env, next);
     return json({ ok: true, changed, count: next.filter(r => r.uid === uid).length });
@@ -257,12 +270,14 @@ async function handleApi(request, env, url, deps) {
 export async function runCron(env, deps) {
   const now = deps.now();
   const list = await readPending(env);
-  const due = list.filter(r => r.at <= now + EARLY_MS).slice(0, MAX_SENDS_PER_RUN);
+  const isMainDue = r => r.at <= now + EARLY_MS;
+  const isPreDue = r => r.lead > 0 && !r.preSent && !isMainDue(r) && r.at - r.lead * 60000 <= now + EARLY_MS;
+  const due = list.filter(r => isMainDue(r) || isPreDue(r)).slice(0, MAX_SENDS_PER_RUN);
   if (!due.length) return { sent: 0, failed: 0, dropped: 0, waiting: list.length };
 
   const v = vapidFor(env, await getVapid(env));
   const subs = new Map();
-  const remove = new Set(), bump = new Set(), goneUids = new Set();
+  const remove = new Set(), bump = new Set(), goneUids = new Set(), preDone = new Set();
   const key = r => r.uid + '|' + r.id + '|' + r.at;
   let sent = 0, failed = 0, dropped = 0;
 
@@ -271,6 +286,13 @@ export async function runCron(env, deps) {
     if (!subs.has(r.uid)) subs.set(r.uid, await getSub(env, r.uid));
     const rec = subs.get(r.uid);
     if (!rec) { remove.add(key(r)); dropped++; continue; }           // abonelik yok → gönderilemez
+    if (isPreDue(r)) {
+      // Önceden uyarı: tek deneme; başarısız olsa da asıl hatırlatma yine gönderilecek
+      const res = await sendPush(rec.sub, prePayloadFor(r, rec), v, deps.fetch);
+      if (res.gone) { goneUids.add(r.uid); remove.add(key(r)); dropped++; await env.KV.delete('sub:' + r.uid); continue; }
+      preDone.add(key(r)); if (res.ok) sent++; else failed++;
+      continue;
+    }
     const res = await sendPush(rec.sub, payloadFor(r, rec), v, deps.fetch);
     if (res.ok) { remove.add(key(r)); sent++; }
     else if (res.gone) { goneUids.add(r.uid); remove.add(key(r)); dropped++; await env.KV.delete('sub:' + r.uid); }
@@ -285,6 +307,7 @@ export async function runCron(env, deps) {
     const k = key(r);
     if (remove.has(k) || goneUids.has(r.uid)) continue;
     if (bump.has(k)) next.push({ ...r, tries: (r.tries || 0) + 1 });
+    else if (preDone.has(k)) next.push({ ...r, preSent: true });
     else next.push(r);
   }
   await writePending(env, next);

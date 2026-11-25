@@ -91,7 +91,8 @@ function loadState() {
   const list = readLS(K_REM, []);
   state.reminders = Array.isArray(list) ? list.filter(validReminder).map(r => ({
     id: r.id, text: String(r.text).slice(0, 200), at: +r.at, createdAt: Number.isFinite(r.createdAt) ? r.createdAt : Date.now(),
-    synced: !!r.synced, done: !!r.done, snoozedFrom: Number.isFinite(r.snoozedFrom) ? r.snoozedFrom : undefined
+    synced: !!r.synced, done: !!r.done, snoozedFrom: Number.isFinite(r.snoozedFrom) ? r.snoozedFrom : undefined,
+    lead: Number.isInteger(r.lead) && r.lead > 0 && r.lead <= 10080 ? r.lead : 0
   })) : [];
   const uid = readLS(K_UID, null);
   state.uid = typeof uid === 'string' && /^[a-f0-9]{64}$/.test(uid) ? uid : null;
@@ -276,7 +277,7 @@ function updateCard(wrap, r, now) {
   wrap.querySelector('.card-title').textContent = r.text;
   const sub = wrap.querySelector('.card-sub');
   const st = whenText(r) + (r.snoozedFrom ? ' · ertelendi' : '');
-  sub.innerHTML = esc(st) + (!r.synced && !past && state.uid ? '<span class="unsynced">senkronize değil</span>' : '');
+  sub.innerHTML = esc(st) + (r.lead && !past ? `<span class="lead">⏳ ${esc(leadLabel(r.lead))} önce</span>` : '') + (!r.synced && !past && state.uid ? '<span class="unsynced">senkronize değil</span>' : '');
   const ms = r.at - now;
   const ring = wrap.querySelector('.ring-sm');
   ring.hidden = past;
@@ -340,7 +341,7 @@ function renderHero(next, now) {
   box.style.setProperty('--tint', categoryOf(next.text).color);
   $('heroTime').textContent = hhmm(d);
   $('heroDay').textContent = dayLabel(d, new Date());
-  $('heroLeft').textContent = leftLong(ms);
+  $('heroLeft').textContent = leftLong(ms) + (next.lead ? ` · ⏳ ${leadLabel(next.lead)} önce` : '');
   $('heroShort').textContent = leftShort(ms);
   requestAnimationFrame(() => { const b = $('heroBar'); if (b) b.style.strokeDashoffset = String(RING_LG * (1 - progressOf(next, now))); });
 }
@@ -408,6 +409,18 @@ function syncList(container, items, now, past) {
   nodes.forEach((n, i) => { if (container.children[i] !== n) container.insertBefore(n, container.children[i] || null); });
 }
 
+/** Uygulama açıkken önceden uyarı zamanı gelince ekranda da kısa bir uyarı göster (bildirime ek). */
+const preShown = new Set();
+function checkPre(now) {
+  for (const r of state.reminders) {
+    if (!r.lead || r.done || preShown.has(r.id) || r.at <= now) continue;
+    const t = r.at - r.lead * 60000;
+    if (now >= t) {
+      preShown.add(r.id);
+      if (now - t < 120000) { toast(`⏳ ${leadLabel(r.lead)} sonra: ${r.text}`, 'ok'); haptic([12, 60, 12]); }
+    }
+  }
+}
 /** Her saniye: yalnızca sayaçları güncelle; bir hatırlatıcının zamanı geldiyse tam yeniden çiz. */
 let lastMinuteKey = '';
 function tick() {
@@ -417,9 +430,10 @@ function tick() {
   if (crossed || mk !== lastMinuteKey) { lastMinuteKey = mk; render(); }
   else {
     const up = upcomingList();
-    if (up[0] && $('heroLeft')) { $('heroLeft').textContent = leftLong(up[0].at - now); $('heroShort').textContent = leftShort(up[0].at - now); }
+    if (up[0] && $('heroLeft')) { $('heroLeft').textContent = leftLong(up[0].at - now) + (up[0].lead ? ` · ⏳ ${leadLabel(up[0].lead)} önce` : ''); $('heroShort').textContent = leftShort(up[0].at - now); }
   }
   checkDue();
+  checkPre(now);
   if (sheetState.open) updateLeft();
 }
 
@@ -517,9 +531,9 @@ function draftFrom(text) {
   delete input.dataset.chip;
   if (chip && !p.saatBelirtildiMi && p.güven < 0.65) {
     const t = parse(chip, new Date());
-    return { text: p.görev, at: t.zaman.getTime(), timeSpecified: true, rolled: false, source: text + ' ' + chip };
+    return { text: p.görev, at: t.zaman.getTime(), timeSpecified: true, rolled: false, source: text + ' ' + chip, lead: p.öncedenDk };
   }
-  return { text: p.görev, at: p.zaman.getTime(), timeSpecified: p.saatBelirtildiMi, rolled: p.yarinaAtildi, source: text };
+  return { text: p.görev, at: p.zaman.getTime(), timeSpecified: p.saatBelirtildiMi, rolled: p.yarinaAtildi, source: text, lead: p.öncedenDk };
 }
 
 let hintTimer = 0;
@@ -877,8 +891,20 @@ function setOdo(h, m, fromZero) {
 function isoDate(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 function autoGrow() { taskInput.style.height = 'auto'; taskInput.style.height = Math.min(140, taskInput.scrollHeight) + 'px'; }
 
+/* Önceden uyarı seçenekleri: Yok · 10 dk · 30 dk · 1 saat (+ söylenen farklı bir süre) */
+const LEAD_OPTIONS = [0, 10, 30, 60];
+function renderLeadChips() {
+  const dr = sheetState.draft; if (!dr) return;
+  const opts = LEAD_OPTIONS.includes(dr.lead) ? LEAD_OPTIONS : LEAD_OPTIONS.concat(dr.lead).sort((a, b) => a - b);
+  const left = (dr.at - Date.now()) / 60000;
+  $('leadChips').innerHTML = opts.map(m => `<button type="button" data-lead="${m}" aria-pressed="${m === dr.lead}"${m && m >= left ? ' disabled' : ''}>${m ? esc(leadLabel(m)) : 'Yok'}</button>`).join('');
+}
+$('leadChips').addEventListener('click', e => {
+  const b = e.target.closest('[data-lead]'); if (!b || b.disabled || !sheetState.draft) return;
+  sheetState.draft.lead = +b.dataset.lead; haptic(6); renderLeadChips();
+});
 function openSheet(draft) {
-  sheetState.draft = Object.assign({}, draft);
+  sheetState.draft = Object.assign({ lead: 0 }, draft);
   sheetState.open = true;
   const d = new Date(draft.at);
   $('sheetKicker').textContent = draft.snoozeOf ? 'Ertele' : 'Yeni hatırlatıcı';
@@ -909,6 +935,9 @@ function refreshSheetTime(fromZero) {
     note.classList.add('info'); note.hidden = false; note.textContent = 'Bugün için bu saat geçtiği için yarına aldım.';
   }
   $('saveBtn').disabled = dr.at <= Date.now();
+  // Saat değişip kalan süre uyarı süresinden kısaldıysa uyarıyı kapat
+  if (dr.lead && dr.lead >= (dr.at - Date.now()) / 60000) dr.lead = 0;
+  renderLeadChips();
   updateLeft();
 }
 function updateLeft() { const dr = sheetState.draft; if (dr) $('leftTxt').innerHTML = `<b>${esc(leftLong(dr.at - Date.now()))}</b>`; }
@@ -976,8 +1005,9 @@ $('saveBtn').addEventListener('click', async () => {
   if (dr.snoozeOf) {
     r = state.reminders.find(x => x.id === dr.snoozeOf);
   }
-  if (r) { r.text = text; r.snoozedFrom = r.snoozedFrom || r.at; r.at = dr.at; r.createdAt = Date.now(); r.done = false; r.synced = false; }
-  else { r = { id: uuid(), text, at: dr.at, createdAt: Date.now(), synced: false, done: false }; state.reminders.push(r); }
+  const lead = dr.lead && dr.lead < (dr.at - Date.now()) / 60000 ? dr.lead : 0;
+  if (r) { r.text = text; r.snoozedFrom = r.snoozedFrom || r.at; r.at = dr.at; r.createdAt = Date.now(); r.done = false; r.synced = false; r.lead = lead; }
+  else { r = { id: uuid(), text, at: dr.at, createdAt: Date.now(), synced: false, done: false, lead }; state.reminders.push(r); }
   save();
   btn.classList.add('done', 'shine');
   haptic(12);
@@ -1154,7 +1184,7 @@ function snooze(ms) {
   const r = state.reminders.find(x => x.id === alarmState.id);
   if (r) {
     r.snoozedFrom = r.snoozedFrom || r.at;
-    r.at = roundToMinute(Date.now() + ms, Date.now()).getTime(); r.createdAt = Date.now(); r.done = false; r.synced = false;
+    r.at = roundToMinute(Date.now() + ms, Date.now()).getTime(); r.createdAt = Date.now(); r.done = false; r.synced = false; r.lead = 0;
     alerted.delete(r.id);
     save(); dropId = r.id; render(); syncOne(r);
     toast(ms >= 3600000 ? '1 saat sonra tekrar hatırlatacağım.' : '10 dakika sonra tekrar hatırlatacağım.', 'ok');
@@ -1421,7 +1451,7 @@ function userTz() { try { return Intl.DateTimeFormat().resolvedOptions().timeZon
 async function syncOne(r) {
   if (!state.uid) return;
   try {
-    await api('/api/reminders', { uid: state.uid, id: r.id, text: r.text, at: r.at, snoozed: !!r.snoozedFrom });
+    await api('/api/reminders', { uid: state.uid, id: r.id, text: r.text, at: r.at, snoozed: !!r.snoozedFrom, lead: r.lead || 0 });
     r.synced = true; save(); render();
   } catch (e) {
     if (e.status === 404) { state.settings.lastSubAt = 0; ensureSubscription(true).then(() => fullSync(true)).catch(() => {}); }
@@ -1442,7 +1472,7 @@ async function fullSync(force) {
   if (!dirty && !force) return;
   syncing = true;
   try {
-    const list = state.reminders.filter(r => r.at > now).map(r => ({ id: r.id, text: r.text, at: r.at, snoozed: !!r.snoozedFrom }));
+    const list = state.reminders.filter(r => r.at > now).map(r => ({ id: r.id, text: r.text, at: r.at, snoozed: !!r.snoozedFrom, lead: r.lead || 0 }));
     await api('/api/sync', { uid: state.uid, reminders: list });
     state.reminders.forEach(r => { if (r.at > now) r.synced = true; });
     state.settings.pendingDeletes = [];

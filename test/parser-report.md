@@ -113,6 +113,10 @@
 | 107 | sözcük türleri: "yarın sabah 9'da toplantı hatırlat" → zaman×3, görev, dolgu | doğru | doğru | ✅ |
 | 108 | sözcük türleri: rica yan cümlesi dolgu sayılır | doğru | doğru | ✅ |
 | 109 | kategori rengi: ilaç pembe, arama yeşil, bilinmeyen varsayılan | doğru | doğru | ✅ |
-| 110 | yarına atıldı işareti | doğru | doğru | ✅ |
+| 110 | önceden uyarı: "saat 16'da toplantı, 15 dakika önce de hatırlat" → 16:00, 15 dk, "Toplantı" | doğru | doğru | ✅ |
+| 111 | önceden uyarı: "yarın 10'da dişçi yarım saat önceden" → 30 dk | doğru | doğru | ✅ |
+| 112 | önceden uyarı: "cuma 9'da uçuş, 1 gün önce hatırlat" → 1440 dk | doğru | doğru | ✅ |
+| 113 | önceden uyarı yoksa 0 | doğru | doğru | ✅ |
+| 114 | yarına atıldı işareti | doğru | doğru | ✅ |
 
-**110/110 geçti**
+**114/114 geçti**
