@@ -94,6 +94,7 @@ try {
     await wait(250);
     ok('Kaydet: buton onay işaretine dönüşüyor', await page.evaluate(() => document.getElementById('saveBtn').classList.contains('done')));
     await wait(1400);
+    ok('Kaydettikten sonra yazı kutusu tamamen temizleniyor (vurgu katmanı, gönder düğmesi, önizleme)', await page.evaluate(() => document.getElementById('input').value === '' && document.getElementById('hlIn').textContent === '' && !document.getElementById('input').classList.contains('hl-on') && !document.getElementById('sendBtn').classList.contains('show') && !document.getElementById('preview').classList.contains('show') && !document.getElementById('ph').hidden));
     ok('Hatırlatıcı localStorage\'a kaydedildi', await page.evaluate(() => JSON.parse(localStorage.getItem('anımsa.reminders')).some(r => r.text === 'Ahmet aranacak')));
     ok('Sıradaki hatırlatıcı kartında görünüyor', (await page.textContent('#hero')).includes('Ahmet aranacak'));
     await page.screenshot({ path: SHOT('07-kayit-sonrasi') });

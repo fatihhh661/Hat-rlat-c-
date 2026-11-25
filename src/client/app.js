@@ -447,6 +447,14 @@ function renderHighlight() {
   input.classList.add('hl-on');
   syncHlScroll();
 }
+/** Yazı kutusunu koddan değiştirir: yer tutucu, gönder düğmesi, vurgu katmanı ve önizleme birlikte güncellenir. */
+function setInput(v) {
+  input.value = v;
+  ph.hidden = !!v;
+  syncSend();
+  clearTimeout(previewTimer);
+  if (v) updatePreview(); else { renderHighlight(); preview.classList.remove('show'); }
+}
 function syncHlScroll() { hlIn.style.transform = input.scrollLeft ? `translateX(${-input.scrollLeft}px)` : ''; }
 ['input', 'keyup', 'click', 'focus', 'blur', 'select', 'scroll'].forEach(ev => input.addEventListener(ev, () => requestAnimationFrame(syncHlScroll)));
 document.addEventListener('selectionchange', () => { if (document.activeElement === input) requestAnimationFrame(syncHlScroll); });
@@ -525,7 +533,7 @@ $('chips').addEventListener('click', e => {
   const b = e.target.closest('[data-chip]'); if (!b) return;
   haptic(6);
   const chip = b.dataset.chip, v = input.value.trim();
-  if (!v) { input.value = ''; input.focus(); showHint(`“${b.textContent}” seçildi. Şimdi ne hatırlatayım?`, 2600); input.dataset.chip = chip; return; }
+  if (!v) { setInput(''); input.focus(); showHint(`“${b.textContent}” seçildi. Şimdi ne hatırlatayım?`, 2600); input.dataset.chip = chip; return; }
   input.blur();
   const task = parse(v, new Date()).görev;
   const t = parse(chip, new Date());
@@ -643,7 +651,7 @@ function startNative(SR) {
     for (let i = 0; i < e.results.length; i++) s += e.results[i][0].transcript;
     S.text = s.trim(); S.alive = true; S.boost = 1;
     $('listenText').textContent = S.text;
-    input.value = S.text; ph.hidden = !!S.text; updatePreview();
+    setInput(S.text);
     resetSilence();
   };
   rec.onerror = e => {
@@ -807,7 +815,7 @@ async function finishListening() {
     if (!res.ok) return failListen('Anlayamadım', 'Ses yazıya çevrilemedi. Tekrar dene ya da klavyedeki 🎤 ile konuş.');
     const text = String(data.text || '').trim();
     if (!text) { $('listenStatus').textContent = 'Bir şey duyamadım'; await sleep(700); closeListen(); showHint('Söylediğini anlayamadım. Biraz daha yakından tekrar dene.', 3200); return; }
-    input.value = text; ph.hidden = true; updatePreview();
+    setInput(text);
     listenEl.classList.add('processing');
     await sleep(reduceMQ.matches ? 100 : 260);
     return toSheet(text);
@@ -844,7 +852,7 @@ $('listenCancel').addEventListener('click', () => {
   const S = L; if (!S) return;
   S.cancelled = true;
   if (S.rec) { try { S.rec.abort(); } catch (e) { /* yok */ } }
-  finishListening(); input.value = ''; updatePreview();
+  finishListening(); setInput('');
 });
 bigWrap.addEventListener('click', () => { if (L) $('listenDone').click(); });
 
@@ -975,7 +983,7 @@ $('saveBtn').addEventListener('click', async () => {
   haptic(12);
   const rect = btn.getBoundingClientRect();
   confetti(rect.left + rect.width / 2, rect.top + rect.height / 2);
-  input.value = ''; ph.hidden = false; preview.classList.remove('show');
+  setInput('');
   await sleep(reduceMQ.matches ? 300 : 620);
   closeSheet();
   setTab('up');
