@@ -12,7 +12,9 @@ const stripModule = src => src
   .replace(/^export (async function|function|const|let|class) /gm, '$1 ');
 
 // 1) İstemci betiği: ayrıştırıcı + uygulama
-const clientJs = stripModule(r('src/parser.js')) + '\n' + r('src/client/app.js').replace('__VERSION__', VERSION);
+// Derleme kodu: kaynakların özeti. Ayarlarda görünür; telefonda hangi sürümün çalıştığı buradan anlaşılır.
+const BUILD = createHash('sha256').update(['src/parser.js', 'src/push.js', 'src/server.js', 'src/client/app.js', 'src/client/app.css', 'src/client/index.html', 'src/client/sw.js'].map(r).join('\n')).digest('hex').slice(0, 7);
+const clientJs = stripModule(r('src/parser.js')) + '\n' + r('src/client/app.js').replace('__VERSION__', `${VERSION} · ${BUILD}`);
 if (/<\/script/i.test(clientJs)) throw new Error('İstemci JS içinde </script geçiyor');
 const css = r('src/client/app.css');
 const page = r('src/client/index.html')
@@ -42,7 +44,7 @@ const ASSETS = { html: page, sw, manifest, icon180: b64('src/icons/icon-180.png'
 const server = stripModule(r('src/parser.js')) + '\n' + stripModule(r('src/push.js')) + '\n' + stripModule(r('src/server.js'));
 
 const out = `/* ════════════════════════════════════════════════════════════════
-   ANIMSA — Sesli & yazılı hatırlatıcı (iPhone PWA)  ·  sürüm ${VERSION}
+   ANIMSA — Sesli & yazılı hatırlatıcı (iPhone PWA)  ·  sürüm ${VERSION} · derleme ${BUILD}
    Tek dosya Cloudflare Worker (module biçimi). Bu dosyayı Cloudflare
    panelindeki düzenleyiciye olduğu gibi yapıştırın.
    Gerekenler: "KV" adlı KV bağlaması + her dakika cron (* * * * *).
@@ -58,4 +60,4 @@ const ASSETS = ${JSON.stringify(ASSETS)};
 export default makeWorker(ASSETS);
 `;
 writeFileSync(new URL('../worker.js', import.meta.url), out);
-console.log(`worker.js yazıldı: ${(out.length / 1024).toFixed(0)} KB (HTML ${(page.length / 1024).toFixed(0)} KB), önbellek ${hash}`);
+console.log(`derleme ${BUILD} · worker.js yazıldı: ${(out.length / 1024).toFixed(0)} KB (HTML ${(page.length / 1024).toFixed(0)} KB), önbellek ${hash}`);

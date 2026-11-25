@@ -103,6 +103,11 @@ const CASES = [
   ['akşam 7\'de annemlere uğra', '2026-11-24 19:00', 'Annenlere uğra'],
   ['yarın 9\'da telefonumu şarj et', '2026-11-25 09:00', 'Telefonunu şarj et'],
   ['cumartesi arkadaşımın düğünü', '2026-11-28 09:00', 'Arkadaşının düğünü', false],
+  ['Büroda kahve demleyeceğime 15 dakika sonra bana hatırlat', '2026-11-24 14:15', 'Büroda kahve demle'],
+  ['Büroda kahve demleyeceğimi 15 dakika sonra bana hatırlat.', '2026-11-24 14:15', 'Büroda kahve demle'],
+  ['15 dakika sonra kahve demleyeceğim', '2026-11-24 14:15', 'Kahve demle'],
+  ['yarın 9\'da faturayı ödeyeceğime dair hatırlat', '2026-11-25 09:00', 'Faturayı öde'],
+  ['akşam 8\'de çöpü çıkarmaya hatırlat', '2026-11-24 20:00', 'Çöpü çıkar'],
   // — "-m" ile biten ama iyelik olmayan sözcükler bozulmaz —
   ['akşam 8\'de sinemaya git', '2026-11-24 20:00', 'Sinemaya git'],
   ['yarın 10\'da sunumu hazırla', '2026-11-25 10:00', 'Sunumu hazırla'],

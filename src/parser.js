@@ -33,7 +33,7 @@ const PERIODS = {
 const PERIOD_DEFAULT = { sabah: 9, oglen: 12, ogleden: 15, ikindi: 16, aksamustu: 18, aksam: 20, gece: 22 };
 
 // Dolgu sözcükleri: kenarlardan temizlenir
-const EDGE_FILLERS = new Set(['saat', 'bana', 'beni', 'bunu', 'şunu', 'lütfen', 'kur', 'de', 'da', 've', 'için', 'olarak', 'sonra', 'tarihinde', 'hatırlatıcı', 'hatırlatma', 'hatırlatması', 'alarm', 'kadar', 'ile', 'ki', 'mi', 'mı']);
+const EDGE_FILLERS = new Set(['dair', 'ilgili', 'hakkında', 'saat', 'bana', 'beni', 'bunu', 'şunu', 'lütfen', 'kur', 'de', 'da', 've', 'için', 'olarak', 'sonra', 'tarihinde', 'hatırlatıcı', 'hatırlatma', 'hatırlatması', 'alarm', 'kadar', 'ile', 'ki', 'mi', 'mı']);
 // Tek başına bir yan cümle oluşturduklarında atılan rica sözcükleri ("bana bunu hatırlatır mısın")
 const META_WORDS = new Set(['bana', 'beni', 'bunu', 'şunu', 'onu', 'bunları', 'lütfen', 'unutma', 'unutmayayım', 'unutturma', 'sakın', 'tamam', 'olur', 'mu', 'mı', 'mi', 'mü', 'musun', 'mısın', 'misin', 'de', 'da', 'ki', 've', 'yap', 'kur', 'alarm', 'not', 'al', 'et', 'eder', 'edebilir', 'etsene', 'hadi', 'acaba', 'benim', 'için', 'teşekkürler', 'sağol', 'sağ', 'ol']);
 // Her yerden silinen sözcükler
@@ -455,7 +455,7 @@ function pad2(n) { return String(n).padStart(2, '0'); }
 /* ── Görev metnini ikinci tekil kişiye çevirme ──
    1) Son fiil emir kipine döner:  arayacağım → ara · içmem gerekiyor → iç · içmemi hatırlat → iç · almayı unutma → al
    2) "Benim" ekleri "senin"e döner: annemi → anneni · kulaklığımı → kulaklığını · toplantım var → toplantın var */
-const NOMINAL = ['acağımızı', 'eceğimizi', 'acağımı', 'eceğimi', 'acağını', 'eceğini', 'masını', 'mesini', 'mamızı', 'memizi', 'mamı', 'memi', 'mayı', 'meyi'];
+const NOMINAL = ['acağımızı', 'eceğimizi', 'acağımıza', 'eceğimize', 'acağımı', 'eceğimi', 'acağıma', 'eceğime', 'acağını', 'eceğini', 'maya', 'meye', 'masını', 'mesini', 'mamızı', 'memizi', 'mamı', 'memi', 'mayı', 'meyi'];
 const FUTURE1 = ['malıyım', 'meliyim', 'malıyız', 'meliyiz', 'acağım', 'eceğim', 'acağız', 'eceğiz'];
 const NEED1 = ['mamız', 'memiz', 'mam', 'mem'];
 const NEED_WORDS = new Set(['lazım', 'lazim', 'gerek', 'gerekiyor', 'gerekli', 'şart']);

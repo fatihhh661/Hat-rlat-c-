@@ -90,24 +90,29 @@
 | 84 | akşam 7'de annemlere uğra | 2026-11-24 19:00 • Annenlere uğra | 2026-11-24 19:00 • Annenlere uğra | ✅ |
 | 85 | yarın 9'da telefonumu şarj et | 2026-11-25 09:00 • Telefonunu şarj et | 2026-11-25 09:00 • Telefonunu şarj et | ✅ |
 | 86 | cumartesi arkadaşımın düğünü | 2026-11-28 09:00 • Arkadaşının düğünü (saat yok) | 2026-11-28 09:00 • Arkadaşının düğünü (saat yok) | ✅ |
-| 87 | akşam 8'de sinemaya git | 2026-11-24 20:00 • Sinemaya git | 2026-11-24 20:00 • Sinemaya git | ✅ |
-| 88 | yarın 10'da sunumu hazırla | 2026-11-25 10:00 • Sunumu hazırla | 2026-11-25 10:00 • Sunumu hazırla | ✅ |
-| 89 | akşam 9'da film izle | 2026-11-24 21:00 • Film izle | 2026-11-24 21:00 • Film izle | ✅ |
-| 90 | yarın 10'da programı kontrol et | 2026-11-25 10:00 • Programı kontrol et | 2026-11-25 10:00 • Programı kontrol et | ✅ |
-| 91 | yarın 10'da kalemimi al | 2026-11-25 10:00 • Kalemini al | 2026-11-25 10:00 • Kalemini al | ✅ |
-| 92 | yarın 11'de diş hekimine git | 2026-11-25 11:00 • Diş hekimine git | 2026-11-25 11:00 • Diş hekimine git | ✅ |
-| 93 | bu akşam 8'de alacağım ekmeği unutma | 2026-11-24 20:00 • Alacağın ekmeği unutma | 2026-11-24 20:00 • Alacağın ekmeği unutma | ✅ |
-| 94 | Saat 18:30'da Ahmet'le buluşacağız, bana haber ver, unutmayayım. | 2026-11-24 18:30 • Ahmet'le buluşacağız, bana haber ver | 2026-11-24 18:30 • Ahmet'le buluşacağız, bana haber ver | ✅ |
-| 95 | tr-TR küçük harf: "İSTANBUL'DA saat 10'da" | doğru | doğru | ✅ |
-| 96 | boş metin çökmez | doğru | doğru | ✅ |
-| 97 | null çökmez | doğru | doğru | ✅ |
-| 98 | güven alanı 0..1 | doğru | doğru | ✅ |
-| 99 | saniyeli "şimdi": "1 dakika sonra" tam dakikaya yuvarlanır (23:21:40 → 23:23:00) | doğru | doğru | ✅ |
-| 100 | saniyeli "şimdi": "20 dk sonra" (14:00:20 → 14:20:00) | doğru | doğru | ✅ |
-| 101 | yuvarlama asla geçmişe düşmez | doğru | doğru | ✅ |
-| 102 | sözcük türleri: "yarın sabah 9'da toplantı hatırlat" → zaman×3, görev, dolgu | doğru | doğru | ✅ |
-| 103 | sözcük türleri: rica yan cümlesi dolgu sayılır | doğru | doğru | ✅ |
-| 104 | kategori rengi: ilaç pembe, arama yeşil, bilinmeyen varsayılan | doğru | doğru | ✅ |
-| 105 | yarına atıldı işareti | doğru | doğru | ✅ |
+| 87 | Büroda kahve demleyeceğime 15 dakika sonra bana hatırlat | 2026-11-24 14:15 • Büroda kahve demle | 2026-11-24 14:15 • Büroda kahve demle | ✅ |
+| 88 | Büroda kahve demleyeceğimi 15 dakika sonra bana hatırlat. | 2026-11-24 14:15 • Büroda kahve demle | 2026-11-24 14:15 • Büroda kahve demle | ✅ |
+| 89 | 15 dakika sonra kahve demleyeceğim | 2026-11-24 14:15 • Kahve demle | 2026-11-24 14:15 • Kahve demle | ✅ |
+| 90 | yarın 9'da faturayı ödeyeceğime dair hatırlat | 2026-11-25 09:00 • Faturayı öde | 2026-11-25 09:00 • Faturayı öde | ✅ |
+| 91 | akşam 8'de çöpü çıkarmaya hatırlat | 2026-11-24 20:00 • Çöpü çıkar | 2026-11-24 20:00 • Çöpü çıkar | ✅ |
+| 92 | akşam 8'de sinemaya git | 2026-11-24 20:00 • Sinemaya git | 2026-11-24 20:00 • Sinemaya git | ✅ |
+| 93 | yarın 10'da sunumu hazırla | 2026-11-25 10:00 • Sunumu hazırla | 2026-11-25 10:00 • Sunumu hazırla | ✅ |
+| 94 | akşam 9'da film izle | 2026-11-24 21:00 • Film izle | 2026-11-24 21:00 • Film izle | ✅ |
+| 95 | yarın 10'da programı kontrol et | 2026-11-25 10:00 • Programı kontrol et | 2026-11-25 10:00 • Programı kontrol et | ✅ |
+| 96 | yarın 10'da kalemimi al | 2026-11-25 10:00 • Kalemini al | 2026-11-25 10:00 • Kalemini al | ✅ |
+| 97 | yarın 11'de diş hekimine git | 2026-11-25 11:00 • Diş hekimine git | 2026-11-25 11:00 • Diş hekimine git | ✅ |
+| 98 | bu akşam 8'de alacağım ekmeği unutma | 2026-11-24 20:00 • Alacağın ekmeği unutma | 2026-11-24 20:00 • Alacağın ekmeği unutma | ✅ |
+| 99 | Saat 18:30'da Ahmet'le buluşacağız, bana haber ver, unutmayayım. | 2026-11-24 18:30 • Ahmet'le buluşacağız, bana haber ver | 2026-11-24 18:30 • Ahmet'le buluşacağız, bana haber ver | ✅ |
+| 100 | tr-TR küçük harf: "İSTANBUL'DA saat 10'da" | doğru | doğru | ✅ |
+| 101 | boş metin çökmez | doğru | doğru | ✅ |
+| 102 | null çökmez | doğru | doğru | ✅ |
+| 103 | güven alanı 0..1 | doğru | doğru | ✅ |
+| 104 | saniyeli "şimdi": "1 dakika sonra" tam dakikaya yuvarlanır (23:21:40 → 23:23:00) | doğru | doğru | ✅ |
+| 105 | saniyeli "şimdi": "20 dk sonra" (14:00:20 → 14:20:00) | doğru | doğru | ✅ |
+| 106 | yuvarlama asla geçmişe düşmez | doğru | doğru | ✅ |
+| 107 | sözcük türleri: "yarın sabah 9'da toplantı hatırlat" → zaman×3, görev, dolgu | doğru | doğru | ✅ |
+| 108 | sözcük türleri: rica yan cümlesi dolgu sayılır | doğru | doğru | ✅ |
+| 109 | kategori rengi: ilaç pembe, arama yeşil, bilinmeyen varsayılan | doğru | doğru | ✅ |
+| 110 | yarına atıldı işareti | doğru | doğru | ✅ |
 
-**105/105 geçti**
+**110/110 geçti**

@@ -161,7 +161,7 @@ try {
     // Ayarlar
     await page.click('#settingsBtn'); await wait(700);
     ok('Ayarlar paneli açılıyor, bildirim rozeti var', await page.evaluate(() => document.getElementById('panel').classList.contains('open')) && (await page.textContent('#notifBadge')).length > 0);
-    ok('Sürüm numarası görünüyor', (await page.textContent('#ver')) === '1.0.0');
+    ok('Sürüm ve derleme kodu görünüyor (1.0.0 · xxxxxxx)', /^1\.0\.0 · [0-9a-f]{7}$/.test(await page.textContent('#ver')));
     await page.screenshot({ path: SHOT('12-ayarlar') });
     await page.click('#wipeBtn'); await wait(100);
     ok('"Tüm verileri sil" iki aşamalı onay istiyor', (await page.textContent('#wipeBtn')) === 'Emin misin?' && (await page.evaluate(() => window.__animsa.state.reminders.length)) > 0);
